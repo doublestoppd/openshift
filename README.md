@@ -124,11 +124,18 @@ Notes:
 ## 4. Quick start on a fresh DigitalOcean Droplet (development / testing)
 
 This section stands up a complete, throwaway test instance on one small
-Droplet — real SMS included — in about 15 minutes. It runs Django's
-development server over plain HTTP with `DEBUG` on, so it is **not** the
-production setup: use it to evaluate the workflow with test data, then
-follow section 5 for a real deployment. Never load real employee names or
-phone numbers into a test instance, and destroy the Droplet when finished.
+Droplet — with a real domain, real Let's Encrypt HTTPS, and real SMS — in
+about 30 minutes. Caddy terminates HTTPS exactly as in production; behind
+it the app runs Django's development server with `DEBUG` on, so this is
+still **not** the production setup. Use it to evaluate the workflow with
+test data, then follow section 5 for a real deployment. Never load real
+employee names or phone numbers into a test instance, and destroy the
+Droplet when finished.
+
+You need a domain you control. The steps below assume it was purchased
+through GoDaddy and use `shifts.example.com` as the test hostname —
+substitute your own subdomain (e.g. `shifts.yourdomain.com`) everywhere it
+appears.
 
 ### 4.1 Create the Droplet
 
@@ -143,7 +150,42 @@ phone numbers into a test instance, and destroy the Droplet when finished.
 ssh root@DROPLET_IP
 ```
 
-### 4.2 Install the application
+### 4.2 Point a subdomain at the Droplet (GoDaddy)
+
+Do this first so DNS has time to propagate while you install. Using a
+subdomain (`shifts.yourdomain.com`) leaves the domain's existing website
+and email records untouched.
+
+1. Sign in at godaddy.com → **My Products** → next to the domain, open
+   **DNS** (sometimes labeled **Manage DNS**).
+2. **Add New Record**:
+   - **Type:** A
+   - **Name:** `shifts` — just the subdomain part; GoDaddy appends the
+     domain automatically. (To use the bare domain itself, put `@` here
+     instead, provided nothing else is hosted on it.)
+   - **Value:** `DROPLET_IP`
+   - **TTL:** the lowest offered (e.g. 600 seconds / ½ hour), so later
+     changes take effect quickly.
+3. Save. If a record with that name already exists, edit it rather than
+   adding a duplicate.
+
+Verify before moving on — Let's Encrypt can only issue a certificate once
+the name actually resolves to this Droplet:
+
+```bash
+dig +short shifts.example.com
+# must print DROPLET_IP — repeat every few minutes until it does
+```
+
+GoDaddy changes usually appear within minutes, occasionally up to an hour.
+
+> Alternative: you can instead switch the domain's nameservers to
+> DigitalOcean (`ns1`/`ns2`/`ns3.digitalocean.com`) and manage records in
+> the DO control panel — but that moves *all* DNS for the domain and takes
+> longer to propagate. For a test box, the single GoDaddy A record above
+> is simpler.
+
+### 4.3 Install the application
 
 On the Droplet:
 
@@ -168,21 +210,23 @@ cp .env.example .env
 nano .env
 ```
 
-Set these values, replacing `DROPLET_IP` with the real IP:
+Set these values, using your real hostname:
 
 ```
 DJANGO_DEBUG=true
-DJANGO_ALLOWED_HOSTS=DROPLET_IP
-PORTAL_BASE_URL=http://DROPLET_IP:8000
+DJANGO_ALLOWED_HOSTS=shifts.example.com
+PORTAL_BASE_URL=https://shifts.example.com
 TIME_ZONE=America/Chicago
 SMS_BACKEND=console
 ```
 
 `PORTAL_BASE_URL` matters even in testing: it is the address the texted
-invitation links point at, so it must be reachable from your phone — the
-Droplet's public IP works.
+invitation links point at, so it must be the public `https://` hostname
+you just configured.
 
-Initialize the database, create a test administrator, and open the port:
+Initialize the database, create a test administrator, and open the web
+ports — 80 is needed for the HTTP→HTTPS redirect and Let's Encrypt
+validation, 443 for HTTPS itself:
 
 ```bash
 python manage.py migrate
@@ -193,35 +237,80 @@ PORTAL_ADMIN_PASSWORD='pick-a-long-test-password' \
     --departments MED_SURG ER --notification-phone "YOUR-MOBILE-NUMBER"
 
 ufw allow OpenSSH
-ufw allow 8000/tcp
+ufw allow 80/tcp
+ufw allow 443/tcp
 ufw --force enable
 ```
 
 Use your own mobile number for `--notification-phone` — that is where
 acceptance alerts will be texted during the test. (If you attached a
-DigitalOcean Cloud Firewall to the Droplet, also open TCP 8000 there;
-`ufw` alone is enough otherwise.)
+DigitalOcean Cloud Firewall to the Droplet, also open TCP 80 and 443
+there; `ufw` alone is enough otherwise.)
 
-### 4.3 Run it — console SMS first, no Twilio needed yet
+### 4.4 Caddy + Let's Encrypt (HTTPS)
 
-Start the development server inside `tmux` so it survives SSH disconnects:
+Install Caddy from its official repository:
+
+```bash
+apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
+apt update && apt install -y caddy
+```
+
+Replace the contents of `/etc/caddy/Caddyfile` with just:
+
+```
+shifts.example.com {
+	reverse_proxy 127.0.0.1:8000
+}
+```
+
+Then:
+
+```bash
+systemctl reload caddy
+journalctl -u caddy --no-pager -n 20    # watch it obtain the certificate
+```
+
+That is the entire HTTPS setup. As soon as the config loads, Caddy
+contacts Let's Encrypt, proves control of the hostname (this is why DNS
+had to resolve first and why port 80 must be open), installs the
+certificate, redirects all HTTP to HTTPS, and renews automatically from
+then on.
+
+If issuance fails, `journalctl -u caddy` says why — it is almost always
+DNS not yet pointing at this Droplet, or port 80/443 blocked. One caution
+for repeated tear-down/rebuild cycles: Let's Encrypt issues at most 5
+identical certificates per hostname per week, so reuse the same Droplet
+within a test cycle rather than recreating it several times a day (or
+vary the subdomain name).
+
+Browsing to `https://shifts.example.com` right now shows a Caddy 502
+error page — expected, since the application isn't running yet.
+
+### 4.5 Run it — console SMS first, no Twilio needed yet
+
+Start the development server inside `tmux` so it survives SSH disconnects.
+It binds to localhost only — Caddy is the sole internet-facing process:
 
 ```bash
 tmux new -s portal
 cd ~/openshift && source .venv/bin/activate
-python manage.py runserver 0.0.0.0:8000
+python manage.py runserver 127.0.0.1:8000
 ```
 
 Detach with `Ctrl-B` then `D`; reattach later with `tmux attach -t portal`.
 
-From your computer or phone, open `http://DROPLET_IP:8000/manage/` and sign
-in as `cno`. With `SMS_BACKEND=console` nothing touches Twilio: every
+From your computer or phone, open `https://shifts.example.com/manage/` —
+note the padlock — and sign in as `cno`. With `SMS_BACKEND=console`
+nothing touches Twilio: every
 "sent" SMS is printed in the runserver terminal instead, including each
 staff member's personal invitation link. Copy a link into your phone's
 browser to play the staff role end to end before spending any Twilio
 credit.
 
-### 4.4 Twilio setup for real test texts
+### 4.6 Twilio setup for real test texts
 
 A free Twilio trial account is enough for testing:
 
@@ -252,10 +341,10 @@ A free Twilio trial account is enough for testing:
    ```
 
 6. Restart the dev server (`Ctrl-C` in the tmux session, then run
-   `python manage.py runserver 0.0.0.0:8000` again) — `.env` is read at
+   `python manage.py runserver 127.0.0.1:8000` again) — `.env` is read at
    startup.
 
-### 4.5 End-to-end test walkthrough
+### 4.7 End-to-end test walkthrough
 
 With Twilio configured:
 
@@ -277,15 +366,24 @@ With Twilio configured:
    Responses** and the **SMS Log** page. Failed sends show Twilio's error
    message in the log — e.g. error 21608 means the destination number is
    not verified on your trial account.
-8. Try the manual path too: `http://DROPLET_IP:8000/staff/login/` with the
-   badge ID + last 4 digits of the mobile number.
+8. Try the manual path too: `https://shifts.example.com/staff/login/` with
+   the badge ID + last 4 digits of the mobile number.
 
-### 4.6 Tearing down
+### 4.8 Tearing down
 
-A test instance runs HTTP with `DEBUG` on — never leave it up unattended
-and never put real employee data in it. When finished, destroy the Droplet
-(**Destroy → Destroy Droplet**, which also stops billing), or rebuild the
-same Droplet properly following section 5.
+Even with HTTPS, a test instance still runs with `DEBUG` on — never leave
+it up unattended and never put real employee data in it. When finished:
+
+1. Destroy the Droplet (**Destroy → Destroy Droplet**), which also stops
+   billing.
+2. Delete (or repoint) the `shifts` A record in GoDaddy DNS. The Let's
+   Encrypt certificate needs no cleanup — it simply expires.
+
+Or keep the Droplet and promote it properly by following section 5: the
+domain, DNS record, firewall, and Caddyfile you just set up are exactly
+what production uses — what changes is swapping the dev server for
+gunicorn under systemd, setting `DJANGO_DEBUG=false`, and moving to the
+hardened user/directory layout.
 
 ## 5. Production deployment on DigitalOcean
 
@@ -397,8 +495,10 @@ sudo systemctl reload caddy
 ```
 
 Point the DNS A record of your hostname at the Droplet **before** starting
-Caddy; it then obtains and renews the TLS certificate automatically and
-redirects all HTTP requests to HTTPS. The site is HTTPS-only.
+Caddy (for a GoDaddy-purchased domain, the record setup is described in
+section 4.2); Caddy then obtains and renews the TLS certificate
+automatically and redirects all HTTP requests to HTTPS. The site is
+HTTPS-only.
 
 ### 5.7 DigitalOcean Cloud Firewall
 

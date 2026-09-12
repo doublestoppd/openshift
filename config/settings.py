@@ -137,10 +137,13 @@ CSRF_COOKIE_SAMESITE = "Lax"
 # How long a manual staff (badge ID) session lasts, in seconds.
 STAFF_SESSION_AGE = int(os.environ.get("STAFF_SESSION_AGE", 30 * 60))
 
+# TLS terminates at Caddy, which proxies to Django over localhost, sets
+# X-Forwarded-Proto, and handles the HTTP->HTTPS redirect. Trusted in every
+# mode so the HTTPS dev/testing setup (README section 4) behaves like
+# production; plain localhost runserver is unaffected.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 if not DEBUG:
-    # TLS terminates at Caddy, which proxies to gunicorn over localhost and
-    # sets X-Forwarded-Proto. Caddy also handles the HTTP->HTTPS redirect.
-    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30
