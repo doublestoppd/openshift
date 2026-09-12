@@ -140,7 +140,7 @@ def dashboard(request):
         Shift.objects.filter(
             status=Shift.Status.OPEN,
             department__in=request.admin_profile.allowed_departments,
-        ).prefetch_related("requested_roles")
+        ).select_related("created_by").prefetch_related("requested_roles")
     ).order_by("shift_date", "department", "shift_type")
     shifts = _attach_no_response_counts(list(shifts))
     return render(request, "portal/manage/dashboard.html", {"shifts": shifts})
@@ -153,7 +153,7 @@ def history(request):
         Shift.objects.filter(
             status__in=[Shift.Status.CLOSED, Shift.Status.EXPIRED],
             department__in=request.admin_profile.allowed_departments,
-        ).prefetch_related("requested_roles")
+        ).select_related("created_by").prefetch_related("requested_roles")
     ).order_by("-shift_date", "department", "shift_type")
     page = Paginator(shifts, 25).get_page(request.GET.get("page"))
     _attach_no_response_counts(page.object_list)

@@ -4,6 +4,7 @@
     <div>
       <div class="shift-title">{{ shift.get_department_display }} — {{ shift.get_shift_type_display }}</div>
       <div class="shift-date">{{ shift.shift_date|date:"l, F j" }}</div>
+      <div class="muted small">Posted by {{ shift.created_by.get_full_name|default:shift.created_by.get_username }}</div>
     </div>
     {% if not show_actions %}
       <span class="pill status-{{ shift.effective_status|lower }}">{{ shift.effective_status|title }}</span>

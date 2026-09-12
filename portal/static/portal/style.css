@@ -410,3 +410,12 @@ tr:last-child td { border-bottom: none; }
 .invite-card { display: block; text-decoration: none; color: var(--ink); }
 .invite-card:hover { border-color: var(--accent); }
 .invite-card .small { margin-top: 8px; }
+
+.help ul { margin: 6px 0 0; padding-left: 18px; }
+
+/* Phones: comfortable 44px tap targets, and no scroll-within-scroll. */
+@media (max-width: 640px) {
+  .btn, .btn.small-btn { min-height: 44px; padding-top: 10px; padding-bottom: 10px; }
+  .nav a { min-height: 44px; display: flex; align-items: center; justify-content: center; }
+  .staff-pick-list { max-height: none; overflow: visible; }
+}

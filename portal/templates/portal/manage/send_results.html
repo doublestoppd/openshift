@@ -1,4 +1,5 @@
 {% extends "portal/manage/base.html" %}
+{% load portal_extras %}
 {% block title %}Send results — {{ shift }}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -15,7 +16,7 @@
     <div class="flash flash-error">
       <strong>Failed recipients:</strong>
       <ul>
-        {% for person in failed %}<li>{{ person.name }} ({{ person.mobile_phone }})</li>{% endfor %}
+        {% for person in failed %}<li>{{ person.name }} ({{ person.mobile_phone|us_phone }})</li>{% endfor %}
       </ul>
       <p class="small">Details are in the SMS Log. You can retry below.</p>
     </div>

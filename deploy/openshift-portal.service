@@ -15,11 +15,14 @@ Group=shiftportal
 WorkingDirectory=/srv/openshift-portal/app
 # All secrets live in this root-owned file, readable only by the service.
 EnvironmentFile=/etc/openshift-portal/env
+# --timeout: SMS sending is synchronous (~0.3-0.5 s per Twilio call), so a
+#   large send must be allowed to finish within one request.
+# No --access-logfile on purpose: request paths include invitation links,
+#   which are bearer credentials and must not be written to the journal.
 ExecStart=/srv/openshift-portal/venv/bin/gunicorn config.wsgi:application \
     --bind 127.0.0.1:8000 \
     --workers 2 \
-    --timeout 60 \
-    --access-logfile - \
+    --timeout 300 \
     --error-logfile -
 Restart=on-failure
 RestartSec=3

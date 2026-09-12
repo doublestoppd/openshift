@@ -27,3 +27,11 @@ def normalize_phone(raw):
 def last4(phone):
     digits = _NON_DIGIT.sub("", phone or "")
     return digits[-4:]
+
+
+def format_us_phone(phone):
+    """'+13125550147' -> '(312) 555-0147' for display; anything else unchanged."""
+    digits = _NON_DIGIT.sub("", phone or "")
+    if len(digits) == 11 and digits.startswith("1"):
+        return f"({digits[1:4]}) {digits[4:7]}-{digits[7:]}"
+    return phone or ""

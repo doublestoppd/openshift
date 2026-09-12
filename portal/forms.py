@@ -2,7 +2,7 @@ from django import forms
 from django.utils import timezone
 
 from .models import AdminProfile, Department, Role, Shift, ShiftType, Staff, StaffGroup
-from .phones import normalize_phone
+from .phones import format_us_phone, normalize_phone
 
 
 class PortalForm(forms.Form):
@@ -73,6 +73,8 @@ class StaffForm(PortalModelForm):
         self.fields["role"].choices = [("", "Choose a role…")] + list(Role.choices)
         if self.instance.pk:
             self.fields["groups"].initial = self.instance.groups.all()
+            if not self.is_bound:
+                self.initial["mobile_phone"] = format_us_phone(self.instance.mobile_phone)
 
     def clean_mobile_phone(self):
         return normalize_phone(self.cleaned_data["mobile_phone"])
@@ -205,6 +207,13 @@ class AccountForm(PortalModelForm):
                 "Leave blank to receive no texts."
             )
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.is_bound and self.instance.notification_phone:
+            self.initial["notification_phone"] = format_us_phone(
+                self.instance.notification_phone
+            )
 
     def clean_notification_phone(self):
         value = self.cleaned_data["notification_phone"].strip()

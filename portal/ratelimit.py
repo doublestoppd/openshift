@@ -37,6 +37,8 @@ def is_blocked(scope, key):
     count = RateLimitEvent.objects.filter(
         scope=scope, key=key, created_at__gte=_window_start()
     ).count()
+    if scope in (SCOPE_STAFF_LOGIN_IP, SCOPE_ADMIN_LOGIN_IP):
+        return count >= settings.LOGIN_RATE_LIMIT_IP_MAX_FAILURES
     return count >= settings.LOGIN_RATE_LIMIT_MAX_FAILURES
 
 

@@ -14,11 +14,18 @@
   <p class="muted small">Department access is assigned by the operator (see README: create_portal_admin).</p>
 </div>
 
-<form method="post" class="card form-card">
+<form method="post" class="card form-card" novalidate>
   {% csrf_token %}
   <h2>SMS notifications</h2>
-  {{ form.non_field_errors }}
-  {{ form.as_div }}
+  {% if form.non_field_errors %}
+    <div class="flash flash-error">{{ form.non_field_errors.0 }}</div>
+  {% endif %}
+  <div class="field">
+    <label for="{{ form.notification_phone.id_for_label }}">Mobile number for acceptance alerts</label>
+    {{ form.notification_phone }}
+    <p class="help">Texted whenever someone accepts all or part of a shift you posted. Leave blank to receive no texts.</p>
+    {% for error in form.notification_phone.errors %}<p class="error">{{ error }}</p>{% endfor %}
+  </div>
   <div class="btn-row">
     <button type="submit" class="btn primary">Save</button>
   </div>

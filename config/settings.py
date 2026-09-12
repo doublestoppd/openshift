@@ -134,6 +134,10 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 
+# How long an administrator stays signed in, in seconds (default 12 hours —
+# administrators often use shared nurse-station computers).
+SESSION_COOKIE_AGE = int(os.environ.get("ADMIN_SESSION_AGE", 12 * 60 * 60))
+
 # How long a manual staff (badge ID) session lasts, in seconds.
 STAFF_SESSION_AGE = int(os.environ.get("STAFF_SESSION_AGE", 30 * 60))
 
@@ -159,17 +163,32 @@ TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "")
 TWILIO_FROM_NUMBER = os.environ.get("TWILIO_FROM_NUMBER", "")
 
 # --- Login rate limiting ----------------------------------------------------
+# Per badge ID / username: tight, because it protects one account.
 LOGIN_RATE_LIMIT_MAX_FAILURES = int(os.environ.get("LOGIN_RATE_LIMIT_MAX_FAILURES", 8))
+# Per client IP: looser, because a whole hospital typically shares one
+# public address and one person's typos must not lock everyone out.
+LOGIN_RATE_LIMIT_IP_MAX_FAILURES = int(os.environ.get("LOGIN_RATE_LIMIT_IP_MAX_FAILURES", 50))
 LOGIN_RATE_LIMIT_WINDOW_SECONDS = int(os.environ.get("LOGIN_RATE_LIMIT_WINDOW_SECONDS", 15 * 60))
 
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "filters": {
+        # Invitation links are bearer credentials; Django logs request paths
+        # for 4xx/5xx responses, so strip the token before anything is written.
+        "redact_invitation_tokens": {
+            "()": "portal.logging_filters.RedactInvitationTokens",
+        },
+    },
     "formatters": {
         "simple": {"format": "{asctime} {levelname} {name} {message}", "style": "{"},
     },
     "handlers": {
-        "console": {"class": "logging.StreamHandler", "formatter": "simple"},
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+            "filters": ["redact_invitation_tokens"],
+        },
     },
     "root": {"handlers": ["console"], "level": os.environ.get("DJANGO_LOG_LEVEL", "INFO")},
 }

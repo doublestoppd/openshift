@@ -496,7 +496,10 @@ systemctl status openshift-portal
 ```
 
 The unit binds gunicorn to `127.0.0.1:8000` only — it is never exposed to the
-internet directly.
+internet directly. Its request timeout is 300 seconds so that a large
+synchronous send (each Twilio call takes roughly half a second) completes
+in one request, and gunicorn's HTTP access log is deliberately off because
+request paths would contain staff invitation links.
 
 ### 5.6 Caddy (HTTPS)
 
@@ -565,14 +568,15 @@ sudo systemctl start openshift-portal
 ### 5.9 Updating the application
 
 ```bash
-sudo -u shiftportal -H bash -c '
-cd /srv/openshift-portal/app && git pull &&
-../venv/bin/pip install -r requirements.txt &&
-set -a; source /etc/openshift-portal/env; set +a;
-../venv/bin/python manage.py migrate &&
-../venv/bin/python manage.py collectstatic --noinput'
-sudo systemctl restart openshift-portal
+sudo /srv/openshift-portal/app/deploy/update.sh
 ```
+
+The script pulls the latest code, installs dependencies, applies database
+migrations, collects static files, runs Django's deployment checks, and
+only then restarts the service — so a failed step leaves the previous
+version running. (Doing it by hand means exactly those steps, in that
+order, as the `shiftportal` user with the environment file loaded; never
+skip `collectstatic` — see 6.6.)
 
 ## 6. Day-to-day operations
 
@@ -678,6 +682,10 @@ Per-message SMS results are on the **SMS Log** page in the admin UI; the
 journal shows the same failures plus anything else that goes wrong.
 Both services start automatically after a reboot.
 
+There is intentionally no per-request access log: request paths contain
+staff invitation links, which act as credentials. Any path that does reach
+the application log is written with the token replaced by `[redacted]`.
+
 ### 6.5 Administrator accounts
 
 There are no built-in accounts. `create_portal_admin` both creates and
@@ -706,10 +714,11 @@ Administrators change their own password and notification number on the
 
 ### 6.6 Updating the application
 
-Follow section 5.9 exactly — in particular never skip `collectstatic`:
-the site serves fingerprinted static files, and after a code update
-without it **every page returns a 500 error** ("Missing staticfiles
-manifest entry") until it is run.
+Run `sudo /srv/openshift-portal/app/deploy/update.sh` (section 5.9); it
+performs every step in the right order. If you ever update by hand, never
+skip `collectstatic`: the site serves fingerprinted static files, and after
+a code update without it **every page returns a 500 error** ("Missing
+staticfiles manifest entry") until it is run.
 
 ### 6.7 Troubleshooting
 
@@ -722,7 +731,7 @@ manifest entry") until it is run.
 | SMS Log says "Twilio is not configured" | `TWILIO_*` missing, or the service was not restarted after editing | Check the env file, restart |
 | "Sent to Twilio" but texts never arrive | Trial account (unverified number), A2P 10DLC not registered, recipient sent STOP | See 6.3 error table |
 | Certificate error / Caddy can't get a certificate | DNS not pointing at this Droplet, or ports 80/443 blocked | `dig +short your-host`, check the firewall, `journalctl -u caddy` |
-| "Too many attempts" on a login page | Rate limit (8 failures / 15 min per IP and per badge or username) | Wait 15 minutes, or clear: `portal shell -c "from portal.models import RateLimitEvent; RateLimitEvent.objects.all().delete()"` |
+| "Too many attempts" on a login page | Rate limit: 8 failures / 15 min per badge ID or username, 50 per IP address (a hospital usually shares one IP) | Wait 15 minutes, or clear: `portal shell -c "from portal.models import RateLimitEvent; RateLimitEvent.objects.all().delete()"` |
 | A past shift is still listed as open | Expiry is applied when a page loads | Reload the dashboard |
 | Database "is locked" errors in the log | Two processes writing at once (rare with SQLite) | Retry; if persistent, check for a stray second copy of the app running |
 
@@ -748,8 +757,11 @@ manifest entry") until it is run.
   their info to staff but accept no responses, and remain visible under
   History.
 - **Rate limiting**: staff and administrator logins are limited to 8 failed
-  attempts per 15 minutes per IP and per badge/username (configurable via
-  environment variables).
+  attempts per 15 minutes per badge ID / username, and 50 per client IP
+  (deliberately looser, because a whole hospital typically shares one
+  public IP). Both are configurable via environment variables.
+- **Sessions**: administrators stay signed in for 12 hours (shared
+  nurse-station computers); staff badge-ID sessions last 30 minutes.
 
 ## 8. Implementation assumptions
 

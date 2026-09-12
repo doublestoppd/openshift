@@ -38,7 +38,7 @@ def deliver(to, body):
         )
         return message.sid or "", ""
     except Exception as exc:  # Twilio raises many exception types; log and report all.
-        logger.warning("Twilio send to %s failed: %s", to, exc)
+        logger.warning("Twilio send to ***%s failed: %s", to[-4:], exc)
         return "", str(exc)[:500]
 
 
