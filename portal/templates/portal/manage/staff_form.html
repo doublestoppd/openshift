@@ -5,10 +5,58 @@
   <h1>{% if person %}Edit {{ person.name }}{% else %}Add staff{% endif %}</h1>
 </div>
 
-<form method="post" class="card form-card">
+<form method="post" class="card form-card" novalidate>
   {% csrf_token %}
-  {{ form.non_field_errors }}
-  {{ form.as_div }}
+  {% if form.non_field_errors %}
+    <div class="flash flash-error">{{ form.non_field_errors.0 }}</div>
+  {% endif %}
+
+  <div class="field">
+    <label for="{{ form.name.id_for_label }}">Full name</label>
+    {{ form.name }}
+    {% for error in form.name.errors %}<p class="error">{{ error }}</p>{% endfor %}
+  </div>
+
+  <div class="field">
+    <label for="{{ form.badge_id.id_for_label }}">Badge ID</label>
+    {{ form.badge_id }}
+    {% for error in form.badge_id.errors %}<p class="error">{{ error }}</p>{% endfor %}
+  </div>
+
+  <div class="field">
+    <label for="{{ form.mobile_phone.id_for_label }}">Mobile phone</label>
+    {{ form.mobile_phone }}
+    <p class="help">Used for shift invitations. Staff sign in with the last 4 digits.</p>
+    {% for error in form.mobile_phone.errors %}<p class="error">{{ error }}</p>{% endfor %}
+  </div>
+
+  <div class="field">
+    <label for="{{ form.role.id_for_label }}">Role</label>
+    {{ form.role }}
+    {% for error in form.role.errors %}<p class="error">{{ error }}</p>{% endfor %}
+  </div>
+
+  <div class="field">
+    <label class="check-row toggle-row">
+      {{ form.is_active }}
+      <span>Active <span class="muted small">— can receive invitations and sign in</span></span>
+    </label>
+  </div>
+
+  <div class="field">
+    <span class="label">Groups <span class="muted small">— optional</span></span>
+    {% if form.groups.field.queryset %}
+      <div class="choice-group">
+        {% for choice in form.groups %}
+          <label class="choice">{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="muted small">No groups yet — create them under <a href="{% url 'group_list' %}">Groups</a>.</p>
+    {% endif %}
+    {% for error in form.groups.errors %}<p class="error">{{ error }}</p>{% endfor %}
+  </div>
+
   <div class="btn-row">
     <button type="submit" class="btn primary">Save</button>
     <a class="btn ghost" href="{% url 'staff_list' %}">Cancel</a>

@@ -15,13 +15,15 @@
   </div>
   {% if shift.note %}<p class="muted small">{{ shift.note }}</p>{% endif %}
   <p class="counts">
-    {% if shift.invited_count %}
+    {% if not shift.invited_count %}
+      <span class="muted">No invitations sent yet</span>
+    {% elif shift.full_count or shift.partial_count or shift.declined_count %}
       <span class="count-full">{{ shift.full_count }} full</span> ·
       <span class="count-partial">{{ shift.partial_count }} partial</span> ·
       <span class="count-declined">{{ shift.declined_count }} declined</span> ·
       <span class="count-none">{{ shift.no_response_count }} no response</span>
     {% else %}
-      <span class="muted">No invitations sent yet</span>
+      <span class="muted">{{ shift.invited_count }} invited · no replies yet</span>
     {% endif %}
   </p>
   <div class="shift-actions">

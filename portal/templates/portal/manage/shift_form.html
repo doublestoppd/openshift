@@ -5,15 +5,73 @@
   <h1>{% if shift %}Edit shift{% else %}New open shift{% endif %}</h1>
 </div>
 
-<form method="post" class="card form-card">
+<form method="post" class="card form-card shift-form" novalidate>
   {% csrf_token %}
-  {{ form.non_field_errors }}
-  {{ form.as_div }}
+  {% if form.non_field_errors %}
+    <div class="flash flash-error">{{ form.non_field_errors.0 }}</div>
+  {% endif %}
+
+  <div class="field">
+    {% if form.single_department %}
+      <span class="label">Department</span>
+      {{ form.department }}
+      <div class="static-value">{{ form.single_department }}</div>
+    {% else %}
+      <label for="{{ form.department.id_for_label }}">Department</label>
+      {{ form.department }}
+    {% endif %}
+    {% for error in form.department.errors %}<p class="error">{{ error }}</p>{% endfor %}
+  </div>
+
+  <div class="field">
+    <label for="{{ form.shift_date.id_for_label }}">Date</label>
+    {{ form.shift_date }}
+    {% for error in form.shift_date.errors %}<p class="error">{{ error }}</p>{% endfor %}
+  </div>
+
+  <div class="field">
+    <span class="label">Shift</span>
+    <div class="choice-group big">
+      {% for choice in form.shift_type %}
+        <label class="choice">
+          {{ choice.tag }}
+          <span>{% if choice.data.value == "DAY" %}☀️{% else %}🌙{% endif %} {{ choice.choice_label }}</span>
+        </label>
+      {% endfor %}
+    </div>
+    {% for error in form.shift_type.errors %}<p class="error">{{ error }}</p>{% endfor %}
+  </div>
+
+  <div class="field">
+    <span class="label">Requested roles <span class="muted small">— pick one or more</span></span>
+    <div class="choice-group">
+      {% for choice in form.roles %}
+        <label class="choice">{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>
+      {% endfor %}
+    </div>
+    {% for error in form.roles.errors %}<p class="error">{{ error }}</p>{% endfor %}
+  </div>
+
+  <div class="optional-section">
+    <h2>Optional</h2>
+    <div class="field">
+      <label for="{{ form.incentive_amount.id_for_label }}">Incentive bonus</label>
+      <div class="input-prefix"><span>$</span>{{ form.incentive_amount }}</div>
+      {% for error in form.incentive_amount.errors %}<p class="error">{{ error }}</p>{% endfor %}
+    </div>
+    <div class="field">
+      <label for="{{ form.note.id_for_label }}">Note</label>
+      {{ form.note }}
+      <p class="help">Staffing note only. Do not enter patient information.</p>
+      {% for error in form.note.errors %}<p class="error">{{ error }}</p>{% endfor %}
+    </div>
+  </div>
+
   <div class="btn-row">
-    <button type="submit" class="btn">Save</button>
     <button type="submit" name="save_and_recipients" value="1" class="btn primary">
       Save &amp; Choose Recipients
     </button>
+    <button type="submit" class="btn">Save for later</button>
     <a class="btn ghost" href="{% url 'manage_dashboard' %}">Cancel</a>
   </div>
   <p class="muted small">Saving never sends SMS. Texts go out only from the send screen.</p>

@@ -12,7 +12,7 @@
   {% if query %}<a class="btn ghost" href="{% url 'staff_list' %}">Clear</a>{% endif %}
 </form>
 
-<div class="card table-card">
+<div class="card table-card table-cards">
   <div class="table-scroll">
     <table>
       <thead>
@@ -21,14 +21,14 @@
       <tbody>
         {% for person in people %}
         <tr class="{% if not person.is_active %}row-inactive{% endif %}">
-          <td>{{ person.name }}</td>
-          <td>{{ person.badge_id }}</td>
-          <td>{{ person.role }}</td>
-          <td>{{ person.mobile_phone }}</td>
-          <td class="muted small">
+          <td class="cell-primary" data-label="Name">{{ person.name }}</td>
+          <td data-label="Badge ID">{{ person.badge_id }}</td>
+          <td data-label="Role">{{ person.role }}</td>
+          <td data-label="Mobile">{{ person.mobile_phone }}</td>
+          <td data-label="Groups" class="muted small">
             {% for group in person.groups.all %}{{ group.name }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}
           </td>
-          <td>
+          <td data-label="Status">
             {% if person.is_active %}<span class="pill pill-full">Active</span>
             {% else %}<span class="pill pill-declined">Inactive</span>{% endif %}
           </td>

@@ -9,7 +9,7 @@
 </div>
 <p class="muted">Outbound messages submitted to Twilio. Phone numbers are masked here.</p>
 
-<div class="card table-card">
+<div class="card table-card table-cards">
   <div class="table-scroll">
     <table>
       <thead>
@@ -18,17 +18,17 @@
       <tbody>
         {% for log in page %}
         <tr>
-          <td class="nowrap">{{ log.created_at|date:"M j, g:i A" }}</td>
-          <td>{% if log.message_type == "SHIFT_INVITATION" %}Invitation{% else %}Acceptance alert{% endif %}</td>
-          <td class="small">{% if log.shift %}<a href="{% url 'shift_responses' log.shift.pk %}">{{ log.shift }}</a>{% else %}—{% endif %}</td>
-          <td>{% if log.staff %}{{ log.staff.name }}{% elif log.admin_user %}{{ log.admin_user.get_username }} (admin){% else %}—{% endif %}</td>
-          <td class="nowrap">{{ log.masked_phone }}</td>
-          <td>
+          <td class="nowrap" data-label="When">{{ log.created_at|date:"M j, g:i A" }}</td>
+          <td data-label="Type">{% if log.message_type == "SHIFT_INVITATION" %}Invitation{% else %}Acceptance alert{% endif %}</td>
+          <td class="small" data-label="Shift">{% if log.shift %}<a href="{% url 'shift_responses' log.shift.pk %}">{{ log.shift }}</a>{% else %}—{% endif %}</td>
+          <td data-label="Recipient">{% if log.staff %}{{ log.staff.name }}{% elif log.admin_user %}{{ log.admin_user.get_username }} (admin){% else %}—{% endif %}</td>
+          <td class="nowrap" data-label="To">{{ log.masked_phone }}</td>
+          <td data-label="Result">
             {% if log.result == "SENT_TO_TWILIO" %}<span class="pill pill-full">Sent to Twilio</span>
             {% else %}<span class="pill pill-declined">Failed</span>{% endif %}
           </td>
-          <td class="small muted">{{ log.twilio_sid|default:"—"|truncatechars:20 }}</td>
-          <td class="small">{{ log.error_message|truncatechars:80|default:"—" }}</td>
+          <td class="small muted" data-label="Twilio SID">{{ log.twilio_sid|default:"—"|truncatechars:20 }}</td>
+          <td class="small" data-label="Error">{{ log.error_message|truncatechars:80|default:"—" }}</td>
         </tr>
         {% empty %}
         <tr><td colspan="8" class="muted">No messages logged yet.</td></tr>

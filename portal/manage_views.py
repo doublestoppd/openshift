@@ -536,7 +536,7 @@ def account(request):
 
 @admin_required
 def password_change(request):
-    form = PasswordChangeForm(request.user, request.POST or None)
+    form = PasswordChangeForm(request.user, request.POST or None, label_suffix="")
     if request.method == "POST" and form.is_valid():
         user = form.save()
         update_session_auth_hash(request, user)

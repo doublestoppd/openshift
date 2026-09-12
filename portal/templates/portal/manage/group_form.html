@@ -5,13 +5,67 @@
   <h1>{% if group %}Edit “{{ group.name }}”{% else %}New group{% endif %}</h1>
 </div>
 
-<form method="post" class="card form-card">
+<form method="post" class="card form-card" novalidate>
   {% csrf_token %}
-  {{ form.non_field_errors }}
-  {{ form.as_div }}
+  {% if form.non_field_errors %}
+    <div class="flash flash-error">{{ form.non_field_errors.0 }}</div>
+  {% endif %}
+
+  <div class="field">
+    <label for="{{ form.name.id_for_label }}">Group name</label>
+    {{ form.name }}
+    {% for error in form.name.errors %}<p class="error">{{ error }}</p>{% endfor %}
+  </div>
+
+  <div class="field staff-picker">
+    <span class="label">Members</span>
+    {% if form.staff_choices %}
+      <input type="search" class="picker-filter" placeholder="Filter by name or badge ID" autocomplete="off">
+      <div class="staff-pick-list">
+        {% for person in form.staff_choices %}
+          <label class="check-row staff-row" data-name="{{ person.name|lower }}" data-badge="{{ person.badge_id|lower }}">
+            <input type="checkbox" name="members" value="{{ person.pk }}"
+                   {% if person.pk in form.selected_member_ids %}checked{% endif %}>
+            {{ person.name }}
+            <span class="pill">{{ person.role }}</span>
+            <span class="muted small">#{{ person.badge_id }}</span>
+            {% if not person.is_active %}<span class="pill pill-declined">inactive</span>{% endif %}
+          </label>
+        {% endfor %}
+      </div>
+      <p class="muted small"><strong class="picker-count">0</strong> selected</p>
+    {% else %}
+      <p class="muted small">No staff in the directory yet — add them under <a href="{% url 'staff_list' %}">Staff</a>.</p>
+    {% endif %}
+    {% for error in form.members.errors %}<p class="error">{{ error }}</p>{% endfor %}
+  </div>
+
   <div class="btn-row">
     <button type="submit" class="btn primary">Save</button>
     <a class="btn ghost" href="{% url 'group_list' %}">Cancel</a>
   </div>
 </form>
+
+<script>
+(function () {
+  var picker = document.querySelector(".staff-picker");
+  if (!picker) return;
+  var filter = picker.querySelector(".picker-filter");
+  var rows = picker.querySelectorAll(".staff-row");
+  var count = picker.querySelector(".picker-count");
+  function recount() {
+    if (count) count.textContent = picker.querySelectorAll('input[type="checkbox"]:checked').length;
+  }
+  if (filter) {
+    filter.addEventListener("input", function () {
+      var q = filter.value.trim().toLowerCase();
+      rows.forEach(function (row) {
+        row.hidden = !!q && row.dataset.name.indexOf(q) === -1 && row.dataset.badge.indexOf(q) === -1;
+      });
+    });
+  }
+  picker.addEventListener("change", recount);
+  recount();
+})();
+</script>
 {% endblock %}
