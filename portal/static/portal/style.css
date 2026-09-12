@@ -19,6 +19,11 @@
 
 * { box-sizing: border-box; }
 
+/* The `hidden` attribute must win over component display rules (e.g. the
+   flex .check-row used by the recipient filter), which otherwise out-specify
+   the browser default and leave "hidden" rows visible. */
+[hidden] { display: none !important; }
+
 body {
   margin: 0;
   background: var(--bg);

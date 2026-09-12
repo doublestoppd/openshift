@@ -159,7 +159,13 @@ class Shift(models.Model):
 
     @property
     def roles_list(self):
-        return [r.role for r in self.requested_roles.all()]
+        # Canonical clinical order (RN, LPN, CNA) regardless of insertion order,
+        # so displays read consistently everywhere.
+        order = {role: i for i, role in enumerate(Role.values)}
+        return sorted(
+            (r.role for r in self.requested_roles.all()),
+            key=lambda role: order.get(role, len(order)),
+        )
 
     @property
     def roles_display(self):
