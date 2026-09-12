@@ -121,7 +121,173 @@ Notes:
 - Delivery-status webhooks are intentionally not implemented; the log shows
   submission results only.
 
-## 4. Production deployment on DigitalOcean
+## 4. Quick start on a fresh DigitalOcean Droplet (development / testing)
+
+This section stands up a complete, throwaway test instance on one small
+Droplet — real SMS included — in about 15 minutes. It runs Django's
+development server over plain HTTP with `DEBUG` on, so it is **not** the
+production setup: use it to evaluate the workflow with test data, then
+follow section 5 for a real deployment. Never load real employee names or
+phone numbers into a test instance, and destroy the Droplet when finished.
+
+### 4.1 Create the Droplet
+
+1. DigitalOcean → **Create → Droplets**.
+2. Image: **Ubuntu 24.04 (LTS)**. Size: the smallest **Basic** plan
+   (512 MB–1 GB is plenty for testing).
+3. Authentication: your SSH key.
+4. Create it, then note its public IP address — written as `DROPLET_IP`
+   in everything below.
+
+```bash
+ssh root@DROPLET_IP
+```
+
+### 4.2 Install the application
+
+On the Droplet:
+
+```bash
+apt update && apt install -y python3-venv python3-pip git sqlite3 tmux
+
+git clone https://github.com/doublestoppd/openshift.git
+cd openshift
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+(If the repository is private, create a GitHub personal access token with
+read access and clone with
+`git clone https://<token>@github.com/doublestoppd/openshift.git`.)
+
+Configure the environment:
+
+```bash
+cp .env.example .env
+nano .env
+```
+
+Set these values, replacing `DROPLET_IP` with the real IP:
+
+```
+DJANGO_DEBUG=true
+DJANGO_ALLOWED_HOSTS=DROPLET_IP
+PORTAL_BASE_URL=http://DROPLET_IP:8000
+TIME_ZONE=America/Chicago
+SMS_BACKEND=console
+```
+
+`PORTAL_BASE_URL` matters even in testing: it is the address the texted
+invitation links point at, so it must be reachable from your phone — the
+Droplet's public IP works.
+
+Initialize the database, create a test administrator, and open the port:
+
+```bash
+python manage.py migrate
+python manage.py test portal      # optional sanity check — all tests should pass
+
+PORTAL_ADMIN_PASSWORD='pick-a-long-test-password' \
+    python manage.py create_portal_admin cno \
+    --departments MED_SURG ER --notification-phone "YOUR-MOBILE-NUMBER"
+
+ufw allow OpenSSH
+ufw allow 8000/tcp
+ufw --force enable
+```
+
+Use your own mobile number for `--notification-phone` — that is where
+acceptance alerts will be texted during the test. (If you attached a
+DigitalOcean Cloud Firewall to the Droplet, also open TCP 8000 there;
+`ufw` alone is enough otherwise.)
+
+### 4.3 Run it — console SMS first, no Twilio needed yet
+
+Start the development server inside `tmux` so it survives SSH disconnects:
+
+```bash
+tmux new -s portal
+cd ~/openshift && source .venv/bin/activate
+python manage.py runserver 0.0.0.0:8000
+```
+
+Detach with `Ctrl-B` then `D`; reattach later with `tmux attach -t portal`.
+
+From your computer or phone, open `http://DROPLET_IP:8000/manage/` and sign
+in as `cno`. With `SMS_BACKEND=console` nothing touches Twilio: every
+"sent" SMS is printed in the runserver terminal instead, including each
+staff member's personal invitation link. Copy a link into your phone's
+browser to play the staff role end to end before spending any Twilio
+credit.
+
+### 4.4 Twilio setup for real test texts
+
+A free Twilio trial account is enough for testing:
+
+1. Sign up at <https://www.twilio.com/try-twilio> and verify your own
+   mobile number during signup.
+2. In the Twilio Console, choose **Get a trial phone number** and accept
+   the suggested US number (it must have SMS capability). This becomes the
+   portal's sending number.
+3. Trial-account limits to know about:
+   - Twilio delivers only to **verified** numbers. Verify every phone you
+     will test with under **Phone Numbers → Manage → Verified Caller IDs**
+     (your signup number is already verified).
+   - Every trial message is prefixed with "Sent from your Twilio trial
+     account". Upgrading the account (adding a payment method) removes
+     both limits.
+   - For ongoing production texting from a US local number, Twilio also
+     requires A2P 10DLC registration (Console → Messaging → Regulatory
+     Compliance). That is not needed for low-volume trial texts to
+     verified numbers, but plan for it before go-live.
+4. From the Console dashboard, copy the **Account SID** and **Auth Token**.
+5. Update `.env` on the Droplet:
+
+   ```
+   SMS_BACKEND=twilio
+   TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+   TWILIO_AUTH_TOKEN=your-auth-token
+   TWILIO_FROM_NUMBER=+1XXXXXXXXXX
+   ```
+
+6. Restart the dev server (`Ctrl-C` in the tmux session, then run
+   `python manage.py runserver 0.0.0.0:8000` again) — `.env` is read at
+   startup.
+
+### 4.5 End-to-end test walkthrough
+
+With Twilio configured:
+
+1. **Staff** → **+ Add staff**: add yourself — any badge ID, your verified
+   mobile number, role RN. Add a second tester if you have another
+   verified phone.
+2. **Groups** → **+ New group**: e.g. "Test RNs", with your test staff as
+   members.
+3. **Open Shifts** → **+ New Open Shift**: pick a department, tomorrow's
+   date, Night Shift, role RN, a $150 incentive → **Save & Choose
+   Recipients**.
+4. Select the group (watch the unique-recipient counter), **Continue**,
+   and confirm the send.
+5. Your phone receives the invitation text. Tap the link and respond
+   **I can work part of the shift** with from/until times.
+6. The administrator's notification phone receives the acceptance text,
+   and the dashboard card now shows `1 partial`.
+7. Re-open the same link and change the response, then check **View
+   Responses** and the **SMS Log** page. Failed sends show Twilio's error
+   message in the log — e.g. error 21608 means the destination number is
+   not verified on your trial account.
+8. Try the manual path too: `http://DROPLET_IP:8000/staff/login/` with the
+   badge ID + last 4 digits of the mobile number.
+
+### 4.6 Tearing down
+
+A test instance runs HTTP with `DEBUG` on — never leave it up unattended
+and never put real employee data in it. When finished, destroy the Droplet
+(**Destroy → Destroy Droplet**, which also stops billing), or rebuild the
+same Droplet properly following section 5.
+
+## 5. Production deployment on DigitalOcean
 
 One Ubuntu LTS Droplet (1 GB is plenty). Commands below assume a sudo-capable
 login; adjust paths if you prefer a different layout.
@@ -134,7 +300,7 @@ login; adjust paths if you prefer a different layout.
 └── backups/  # nightly database backups
 ```
 
-### 4.1 System preparation
+### 5.1 System preparation
 
 ```bash
 sudo apt update && sudo apt upgrade -y
@@ -151,7 +317,7 @@ sudo chown -R shiftportal:shiftportal /srv/openshift-portal
 Use SSH key authentication for your login and disable password SSH auth in
 `/etc/ssh/sshd_config` (`PasswordAuthentication no`).
 
-### 4.2 Application install
+### 5.2 Application install
 
 ```bash
 sudo -u shiftportal -H bash
@@ -162,7 +328,7 @@ venv/bin/pip install -r app/requirements.txt
 exit
 ```
 
-### 4.3 Environment file (secrets)
+### 5.3 Environment file (secrets)
 
 Create `/etc/openshift-portal/env`, owned by root, readable by the service
 only:
@@ -189,7 +355,7 @@ TWILIO_AUTH_TOKEN=...
 TWILIO_FROM_NUMBER=+1...
 ```
 
-### 4.4 Migrate, collect static files, create administrators
+### 5.4 Migrate, collect static files, create administrators
 
 ```bash
 sudo -u shiftportal -H bash
@@ -205,7 +371,7 @@ exit
 (Static files are served by the app itself via WhiteNoise, so Caddy needs no
 static-file configuration.)
 
-### 4.5 gunicorn under systemd
+### 5.5 gunicorn under systemd
 
 ```bash
 sudo cp /srv/openshift-portal/app/deploy/openshift-portal.service /etc/systemd/system/
@@ -217,7 +383,7 @@ systemctl status openshift-portal
 The unit binds gunicorn to `127.0.0.1:8000` only — it is never exposed to the
 internet directly.
 
-### 4.6 Caddy (HTTPS)
+### 5.6 Caddy (HTTPS)
 
 ```bash
 sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
@@ -234,7 +400,7 @@ Point the DNS A record of your hostname at the Droplet **before** starting
 Caddy; it then obtains and renews the TLS certificate automatically and
 redirects all HTTP requests to HTTPS. The site is HTTPS-only.
 
-### 4.7 DigitalOcean Cloud Firewall
+### 5.7 DigitalOcean Cloud Firewall
 
 Create a Cloud Firewall attached to the Droplet with **inbound** rules:
 
@@ -247,7 +413,7 @@ Create a Cloud Firewall attached to the Droplet with **inbound** rules:
 Everything else stays closed. SQLite is a local file and gunicorn listens on
 localhost, so neither is reachable from outside regardless.
 
-### 4.8 Nightly database backup
+### 5.8 Nightly database backup
 
 ```bash
 sudo -u shiftportal crontab -e
@@ -270,7 +436,7 @@ sudo -u shiftportal cp /srv/openshift-portal/backups/db-<stamp>.sqlite3 \
 sudo systemctl start openshift-portal
 ```
 
-### 4.9 Updating the application
+### 5.9 Updating the application
 
 ```bash
 sudo -u shiftportal -H bash -c '
@@ -282,7 +448,7 @@ set -a; source /etc/openshift-portal/env; set +a;
 sudo systemctl restart openshift-portal
 ```
 
-## 5. How it works (operator summary)
+## 6. How it works (operator summary)
 
 - **Administrators** sign in at `/manage/` with username/password. Each
   account is limited server-side to its assigned department(s). Navigation:
@@ -307,7 +473,7 @@ sudo systemctl restart openshift-portal
   attempts per 15 minutes per IP and per badge/username (configurable via
   environment variables).
 
-## 6. Implementation assumptions
+## 7. Implementation assumptions
 
 Decisions made where the specification left room:
 
@@ -345,7 +511,7 @@ Decisions made where the specification left room:
 10. **`incentive_amount` is capped at 99,999.99** by the decimal field
     definition; amounts display without trailing `.00`.
 
-## 7. Repository layout
+## 8. Repository layout
 
 ```
 config/            Django project (settings, urls, wsgi)
