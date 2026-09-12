@@ -1,5 +1,5 @@
 {% extends "portal/base.html" %}
-{% block title %}Open Shift — {{ shift.get_department_display }} {{ shift.get_shift_type_display }}{% endblock %}
+{% block title %}{{ shift.get_department_display }} {{ shift.get_shift_type_display }} · {{ portal_name }}{% endblock %}
 {% block mainclass %}narrow staff-page{% endblock %}
 {% block content %}
 
@@ -8,6 +8,7 @@
 {% endif %}
 
 <div class="card shift-hero">
+  <div class="hero-brand">{{ org_name }}</div>
   <div class="hero-dept">{{ shift.get_department_display }} — {{ shift.get_shift_type_display }}</div>
   <div class="hero-date">{{ shift.shift_date|date:"l, F j" }}</div>
   <div class="hero-roles">{{ shift.roles_display }}</div>

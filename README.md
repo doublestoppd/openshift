@@ -20,6 +20,9 @@ approvals, payroll, or patient data.
 - **No built-in accounts.** The first administrator is created from the
   command line (section 2) with a username and password *you* choose;
   staff never have passwords at all.
+- Branded **Chicot Memorial Open Shifts** in every page title and header,
+  and every outgoing text starts with "Chicot Memorial" so staff know who
+  is asking. Both names are settings (`PORTAL_NAME`, `PORTAL_ORG_NAME`).
 
 ---
 
@@ -647,12 +650,14 @@ change is a two-step: edit, then restart.
 
 Changing `DJANGO_ALLOWED_HOSTS` / `PORTAL_BASE_URL` (new domain) works the
 same way, plus the hostname in `/etc/caddy/Caddyfile` and
-`sudo systemctl reload caddy`.
+`sudo systemctl reload caddy`. The same edit-then-restart applies to
+`TIME_ZONE` and to the branding names `PORTAL_NAME` (page titles and
+headers) and `PORTAL_ORG_NAME` (the sender name at the start of every text).
 
 ### 6.3 Testing Twilio without creating a shift
 
 ```bash
-portal shell -c "from portal.sms import deliver; print(deliver('+13125550147', 'Open Shift Portal test message'))"
+portal shell -c "from portal.sms import deliver; print(deliver('+13125550147', 'Chicot Memorial Open Shifts: test message'))"
 ```
 
 Prints `('SM…', '')` when Twilio accepted the message, or `('', '<error>')`

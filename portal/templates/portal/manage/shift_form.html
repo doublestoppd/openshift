@@ -1,5 +1,5 @@
 {% extends "portal/manage/base.html" %}
-{% block title %}{% if shift %}Edit shift{% else %}New open shift{% endif %}{% endblock %}
+{% block title %}{% if shift %}Edit shift{% else %}New open shift{% endif %} · {{ portal_name }}{% endblock %}
 {% block content %}
 <div class="page-head">
   <h1>{% if shift %}Edit shift{% else %}New open shift{% endif %}</h1>

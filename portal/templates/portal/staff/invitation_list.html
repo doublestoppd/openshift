@@ -1,11 +1,11 @@
 {% extends "portal/base.html" %}
-{% block title %}My open invitations{% endblock %}
+{% block title %}My open invitations · {{ portal_name }}{% endblock %}
 {% block mainclass %}narrow staff-page{% endblock %}
 {% block content %}
 <div class="staff-header row-between">
   <div>
     <h1>My open invitations</h1>
-    <p class="muted">{{ staff.name }}</p>
+    <p class="muted">{{ staff.name }} · {{ org_name }}</p>
   </div>
   <form method="post" action="{% url 'staff_logout' %}">
     {% csrf_token %}

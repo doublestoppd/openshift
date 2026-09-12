@@ -40,6 +40,11 @@ ALLOWED_HOSTS = [
     if h.strip()
 ]
 
+# Branding: shown in page titles/headers, and used to identify outgoing
+# texts ("Chicot Memorial open shift: ...", "Chicot Memorial: Jane can work ...").
+PORTAL_NAME = os.environ.get("PORTAL_NAME", "Chicot Memorial Open Shifts")
+PORTAL_ORG_NAME = os.environ.get("PORTAL_ORG_NAME", "Chicot Memorial")
+
 # Public base URL used to build invitation links in SMS messages,
 # e.g. https://shifts.example.org (no trailing slash).
 PORTAL_BASE_URL = os.environ.get("PORTAL_BASE_URL", "http://localhost:8000").rstrip("/")
@@ -79,6 +84,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "portal.context_processors.branding",
             ],
         },
     },

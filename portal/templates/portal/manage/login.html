@@ -1,9 +1,10 @@
 {% extends "portal/base.html" %}
-{% block title %}Administrator sign in{% endblock %}
+{% block title %}Administrator sign in · {{ portal_name }}{% endblock %}
 {% block mainclass %}narrow{% endblock %}
 {% block content %}
 <div class="staff-header">
-  <h1>Administrator sign in</h1>
+  <h1>{{ portal_name }}</h1>
+  <p class="muted">Administrator sign in</p>
 </div>
 
 {% if blocked %}

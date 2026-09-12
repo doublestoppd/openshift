@@ -52,7 +52,7 @@ def _shift_label(shift):
 
 def invitation_body(shift, respond_url):
     day = shift.shift_date.strftime("%a")
-    text = f"Open shift: {_shift_label(shift)} on {day} {_short_date(shift)}."
+    text = f"{settings.PORTAL_ORG_NAME} open shift: {_shift_label(shift)} on {day} {_short_date(shift)}."
     if shift.incentive_amount:
         text += f" ${shift.incentive_display} bonus."
     text += f" Respond here: {respond_url}"
@@ -89,10 +89,10 @@ def acceptance_body(response):
     if response.response_type == response.Type.ACCEPT_PARTIAL:
         window = response.partial_window_display.replace("–", "-")
         return (
-            f"Open Shift: {staff.name} can work part of {_shift_label(shift)} "
+            f"{settings.PORTAL_ORG_NAME}: {staff.name} can work part of {_shift_label(shift)} "
             f"on {_short_date(shift)}, available {window}."
         )
-    return f"Open Shift: {staff.name} can work {_shift_label(shift)} on {_short_date(shift)}."
+    return f"{settings.PORTAL_ORG_NAME}: {staff.name} can work {_shift_label(shift)} on {_short_date(shift)}."
 
 
 def notify_acceptance(response):

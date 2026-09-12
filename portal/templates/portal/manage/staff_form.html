@@ -1,5 +1,5 @@
 {% extends "portal/manage/base.html" %}
-{% block title %}{% if person %}Edit staff{% else %}Add staff{% endif %}{% endblock %}
+{% block title %}{% if person %}Edit staff{% else %}Add staff{% endif %} · {{ portal_name }}{% endblock %}
 {% block content %}
 <div class="page-head">
   <h1>{% if person %}Edit {{ person.name }}{% else %}Add staff{% endif %}</h1>

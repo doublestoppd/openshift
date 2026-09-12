@@ -1,9 +1,9 @@
 {% extends "portal/base.html" %}
-{% block title %}Link no longer active{% endblock %}
+{% block title %}Link no longer active · {{ portal_name }}{% endblock %}
 {% block mainclass %}narrow staff-page{% endblock %}
 {% block content %}
 <div class="card closed-note">
   <strong>This link is no longer active.</strong>
-  <p class="muted">If you believe this is a mistake, please contact your department.</p>
+  <p class="muted">If you believe this is a mistake, please contact your department at {{ org_name }}.</p>
 </div>
 {% endblock %}

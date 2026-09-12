@@ -1,5 +1,5 @@
 {% extends "portal/manage/base.html" %}
-{% block title %}{% if group %}Edit group{% else %}New group{% endif %}{% endblock %}
+{% block title %}{% if group %}Edit group{% else %}New group{% endif %} · {{ portal_name }}{% endblock %}
 {% block content %}
 <div class="page-head">
   <h1>{% if group %}Edit “{{ group.name }}”{% else %}New group{% endif %}</h1>
