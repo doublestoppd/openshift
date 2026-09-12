@@ -1,0 +1,108 @@
+{% extends "portal/manage/base.html" %}
+{% load portal_extras %}
+{% block title %}{{ spec.title }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ spec.title }}</h1>
+  <a class="btn ghost" href="{% url spec.list_url %}">&larr; Back</a>
+</div>
+
+{% if errors %}
+<div class="card">
+  <h2 class="count-declined">Nothing was imported</h2>
+  <p>Fix the problems below in your spreadsheet and upload it again.</p>
+  <ul class="error-list">
+    {% for error in errors %}<li>{{ error }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{% if preview %}
+<form method="post" class="card form-card">
+  {% csrf_token %}
+  <textarea name="csv_text" hidden>
+{{ csv_text }}</textarea>
+  <h2>Ready to import</h2>
+  {% if kind == "staff" %}
+    <p class="confirm-question">
+      <strong>{{ preview.new }}</strong> new staff member{{ preview.new|pluralize }},
+      <strong>{{ preview.updated }}</strong> existing to update{% if preview.new_groups %},
+      <strong>{{ preview.new_groups|length }}</strong> new group{{ preview.new_groups|length|pluralize }}
+      ({{ preview.new_groups|join:", " }}){% endif %}.
+    </p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Name</th><th>Badge ID</th><th>Mobile</th><th>Role</th><th>Active</th><th>Groups</th></tr></thead>
+        <tbody>
+          {% for row in preview.sample %}
+          <tr>
+            <td>{{ row.name }}</td><td>{{ row.badge_id }}</td><td class="nowrap">{{ row.mobile_phone|us_phone }}</td>
+            <td>{{ row.role }}</td><td>{% if row.is_active %}yes{% else %}no{% endif %}</td>
+            <td class="small">{% if row.groups is None %}<span class="muted">unchanged</span>{% else %}{{ row.groups|join:"; " }}{% endif %}</td>
+          </tr>
+          {% endfor %}
+          {% if preview.total > 8 %}<tr><td colspan="6" class="muted small">… and {{ preview.total|add:"-8" }} more</td></tr>{% endif %}
+        </tbody>
+      </table>
+    </div>
+    <p class="muted small">
+      Staff not in the file are left unchanged.
+      {% if preview.has_groups %}Group memberships of the listed staff are replaced by the Groups column.{% else %}Group memberships are not changed (no Groups column).{% endif %}
+    </p>
+  {% else %}
+    <p class="confirm-question">
+      <strong>{{ preview.total }}</strong> group{{ preview.total|pluralize }} ({{ preview.new }} new) with
+      <strong>{{ preview.memberships }}</strong> membership{{ preview.memberships|pluralize }}.
+    </p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Group</th><th>Members in file</th></tr></thead>
+        <tbody>
+          {% for name, count in preview.sample %}<tr><td>{{ name }}</td><td>{{ count }}</td></tr>{% endfor %}
+          {% if preview.total > 8 %}<tr><td colspan="2" class="muted small">… and {{ preview.total|add:"-8" }} more</td></tr>{% endif %}
+        </tbody>
+      </table>
+    </div>
+    <p class="muted small">Each listed group’s members are replaced by the rows in the file. Groups not in the file are left unchanged.</p>
+  {% endif %}
+  <div class="btn-row">
+    <button type="submit" name="confirm" value="1" class="btn primary">Import now</button>
+    <a class="btn ghost" href="{% url spec.list_url %}">Cancel</a>
+  </div>
+</form>
+{% endif %}
+
+{% if not preview %}
+<form method="post" enctype="multipart/form-data" class="card form-card" novalidate>
+  {% csrf_token %}
+  <div class="field">
+    <label for="{{ form.file.id_for_label }}">CSV file</label>
+    {{ form.file }}
+    {% for error in form.file.errors %}<p class="error">{{ error }}</p>{% endfor %}
+  </div>
+  <div class="btn-row">
+    <button type="submit" class="btn primary">Check file</button>
+  </div>
+  <p class="muted small">Nothing is imported until you confirm on the next screen.</p>
+</form>
+
+<div class="card">
+  <h2>Expected columns</h2>
+  <div class="table-scroll">
+    <table>
+      <thead><tr>{% for header in spec.headers %}<th>{{ header }}</th>{% endfor %}</tr></thead>
+      <tbody>
+        {% for row in spec.example %}<tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <ul class="notes">
+    {% for note in spec.notes %}<li>{{ note }}</li>{% endfor %}
+  </ul>
+  <p>
+    <a class="btn small-btn" href="{% url spec.export_url %}">Download current {{ spec.noun }} as CSV</a>
+    <span class="muted small">— the easiest template: edit it and upload it back.</span>
+  </p>
+</div>
+{% endif %}
+{% endblock %}

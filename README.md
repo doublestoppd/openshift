@@ -735,6 +735,39 @@ staticfiles manifest entry") until it is run.
 | A past shift is still listed as open | Expiry is applied when a page loads | Reload the dashboard |
 | Database "is locked" errors in the log | Two processes writing at once (rare with SQLite) | Retry; if persistent, check for a stray second copy of the app running |
 
+### 6.8 Importing and exporting staff and groups (CSV)
+
+The **Staff** and **Groups** pages each have **Import CSV** and **Export
+CSV** buttons. No server access is needed.
+
+- **Export** downloads a spreadsheet-friendly CSV: `staff-<date>.csv`
+  (Name, Badge ID, Mobile Phone, Role, Active, Groups) or
+  `groups-<date>.csv` (Group, Badge ID, Name, Role — one row per member).
+  The export is also the best import template: edit it and upload it back.
+- **Import** is a two-step, all-or-nothing process. Upload the file, the
+  portal checks every row and shows either a numbered list of problems
+  (nothing is imported) or a preview — how many staff are new, how many
+  will be updated, which groups will be created — and only then an
+  **Import now** button.
+- Staff are matched by **Badge ID**: known badges are updated (name, phone,
+  role, active), new ones are added. An import never deletes anyone; to
+  remove someone, set Active to `no`.
+- Column headings are matched loosely (“Phone”, “Mobile” or “Cell” all
+  work, in any order). Phones can be in any US format. Role is RN, LPN or
+  CNA. Active is yes/no (blank means yes).
+- The **Groups** column on a staff row lists that person’s groups separated
+  by semicolons; groups that don’t exist yet are created. Leave the column
+  out entirely to leave memberships as they are.
+- A **groups CSV** (Group, Badge ID) replaces the membership of every group
+  it lists; the staff must already exist.
+- **Excel tip:** badge IDs with leading zeros (`0007`) come back as `7` if
+  Excel is allowed to reformat the column — set the Badge ID column to
+  *Text* (or use Data → From Text/CSV) before saving.
+
+Typical first load: export the empty staff list to get the headings, paste
+your HR list into it, upload, review the preview, import — then build the
+groups in the UI or with a second groups CSV.
+
 ## 7. How it works (operator summary)
 
 - **Administrators** sign in at `/manage/` with username/password. Each
@@ -756,6 +789,9 @@ staticfiles manifest entry") until it is run.
   can close a shift manually at any time. Closed/expired shifts still show
   their info to staff but accept no responses, and remain visible under
   History.
+- **CSV import/export** on the Staff and Groups pages: bulk-load the
+  directory from a spreadsheet (matched by badge ID, validated before
+  anything is written, never deletes) and download it back (section 6.8).
 - **Rate limiting**: staff and administrator logins are limited to 8 failed
   attempts per 15 minutes per badge ID / username, and 50 per client IP
   (deliberately looser, because a whole hospital typically shares one
@@ -800,6 +836,9 @@ Decisions made where the specification left room:
    the employee record.
 10. **`incentive_amount` is capped at 99,999.99** by the decimal field
     definition; amounts display without trailing `.00`.
+11. **CSV import/export was added after v1 at the customer's request.** It
+    is deliberately simple: staff matched by badge ID, all-or-nothing
+    validation with a preview, no deletions, and no HR-system integration.
 
 ## 9. Repository layout
 
@@ -815,6 +854,7 @@ portal/            The single application
   tokens.py        Invitation token generation/hashing
   phones.py        E.164 normalization
   ratelimit.py     DB-backed login rate limiting
+  csv_io.py        CSV import/export for staff and groups
   templates/       Server-rendered pages
   static/          One small stylesheet
   tests/           Test suite (47 tests)

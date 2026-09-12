@@ -350,6 +350,19 @@ tr:last-child td { border-bottom: none; }
 }
 
 .search-bar { display: flex; gap: 8px; margin-bottom: 14px; }
+.page-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+input[type="file"] {
+  width: 100%;
+  padding: 12px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 1rem;
+}
+.error-list { color: var(--red); margin: 8px 0 0; padding-left: 20px; }
+.error-list li { margin: 4px 0; }
+.notes { color: var(--muted); font-size: 0.9rem; padding-left: 20px; }
+.notes li { margin: 4px 0; }
 .search-bar input { flex: 1; }
 
 .pager { display: flex; align-items: center; gap: 12px; justify-content: center; margin: 16px 0; }

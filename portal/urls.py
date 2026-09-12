@@ -37,6 +37,8 @@ urlpatterns = [
     ),
     path("manage/shifts/<int:pk>/send/", manage_views.shift_send, name="shift_send"),
     path("manage/staff/", manage_views.staff_list, name="staff_list"),
+    path("manage/staff/export/", manage_views.staff_export, name="staff_export"),
+    path("manage/staff/import/", manage_views.staff_import, name="staff_import"),
     path("manage/staff/new/", manage_views.staff_create, name="staff_create"),
     path("manage/staff/<int:pk>/edit/", manage_views.staff_edit, name="staff_edit"),
     path(
@@ -45,6 +47,8 @@ urlpatterns = [
         name="staff_toggle_active",
     ),
     path("manage/groups/", manage_views.group_list, name="group_list"),
+    path("manage/groups/export/", manage_views.group_export, name="group_export"),
+    path("manage/groups/import/", manage_views.group_import, name="group_import"),
     path("manage/groups/new/", manage_views.group_create, name="group_create"),
     path("manage/groups/<int:pk>/edit/", manage_views.group_edit, name="group_edit"),
     path("manage/groups/<int:pk>/delete/", manage_views.group_delete, name="group_delete"),

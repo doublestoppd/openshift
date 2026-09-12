@@ -9,14 +9,16 @@ from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
 from django.contrib.auth.views import redirect_to_login
 from django.core.paginator import Paginator
 from django.db.models import Count, Q
-from django.http import Http404
+from django.core.exceptions import ValidationError
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
-from . import ratelimit, sms, tokens
-from .forms import AccountForm, ShiftForm, StaffForm, StaffGroupForm
+from . import csv_io, ratelimit, sms, tokens
+from .forms import AccountForm, CsvUploadForm, ShiftForm, StaffForm, StaffGroupForm
 from .models import Invitation, Shift, ShiftResponse, SmsLog, Staff, StaffGroup
 
 
@@ -543,3 +545,121 @@ def password_change(request):
         messages.success(request, "Password changed.")
         return redirect("manage_account")
     return render(request, "portal/manage/password_change.html", {"form": form})
+
+
+# --- CSV import / export ------------------------------------------------------
+
+def _csv_response(text, stem):
+    response = HttpResponse(text, content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{stem}-{timezone.localdate()}.csv"'
+    return response
+
+
+@admin_required
+def staff_export(request):
+    return _csv_response(csv_io.export_staff_csv(), "staff")
+
+
+@admin_required
+def group_export(request):
+    return _csv_response(csv_io.export_groups_csv(), "groups")
+
+
+CSV_KINDS = {
+    "staff": {
+        "title": "Import staff from CSV",
+        "noun": "staff",
+        "headers": csv_io.STAFF_HEADERS,
+        "example": [
+            ["Jane Smith", "1001", "(312) 555-0147", "RN", "yes", "ER RNs; Night Staff"],
+            ["Bob Reyes", "0042", "312-555-0122", "CNA", "no", ""],
+        ],
+        "notes": [
+            "Column names are matched loosely (“Phone”, “Mobile” or “Cell” all work) and order does not matter.",
+            "Staff are matched by Badge ID: known badges are updated, new ones are added. Nothing is ever deleted.",
+            "Active is yes or no (blank means yes). Groups: separate several with semicolons; groups that do not exist yet are created. Leave the Groups column out to leave memberships alone.",
+            "Excel tip: badge IDs with leading zeros (0007) — format that column as Text before saving, or Excel turns 0007 into 7.",
+            "Any problem in any row stops the whole import, so you never end up with half a file.",
+        ],
+        "parse": csv_io.parse_staff_csv,
+        "preview": csv_io.preview_staff_rows,
+        "apply": csv_io.apply_staff_rows,
+        "list_url": "staff_list",
+        "export_url": "staff_export",
+        "success": lambda r: (
+            f"Imported {r['created']} new staff and updated {r['updated']} existing"
+            + (f", creating {r['groups_created']} new group(s)" if r["groups_created"] else "")
+            + "."
+        ),
+    },
+    "groups": {
+        "title": "Import groups from CSV",
+        "noun": "groups",
+        "headers": csv_io.GROUP_HEADERS,
+        "example": [
+            ["ER RNs", "1001", "Jane Smith", "RN"],
+            ["ER RNs", "1002", "Bob Reyes", "RN"],
+            ["Weekend Staff", "0042", "Ana Diaz", "CNA"],
+        ],
+        "notes": [
+            "One row per member: the group name and that member’s Badge ID. Name and Role are optional and ignored.",
+            "Staff must already exist — add or import them under Staff first.",
+            "Groups that do not exist yet are created. A listed group’s members are replaced by the rows in the file; groups not in the file are left alone.",
+        ],
+        "parse": csv_io.parse_groups_csv,
+        "preview": csv_io.preview_group_rows,
+        "apply": csv_io.apply_group_rows,
+        "list_url": "group_list",
+        "export_url": "group_export",
+        "success": lambda r: (
+            f"Imported {r['created'] + r['updated']} group(s) ({r['created']} new) "
+            f"with {r['memberships']} membership(s)."
+        ),
+    },
+}
+
+
+def _csv_import(request, kind):
+    spec = CSV_KINDS[kind]
+    context = {
+        "kind": kind, "spec": spec, "form": CsvUploadForm(),
+        "errors": None, "preview": None, "csv_text": "",
+    }
+    if request.method == "POST":
+        if request.POST.get("confirm"):
+            # Second step: the validated file contents come back in a hidden
+            # field; re-validate before writing anything.
+            text = request.POST.get("csv_text", "")
+            parsed, errors = spec["parse"](text)
+            if errors:
+                context["errors"] = errors
+            else:
+                result = spec["apply"](parsed)
+                messages.success(request, spec["success"](result))
+                return redirect(spec["list_url"])
+        else:
+            form = CsvUploadForm(request.POST, request.FILES)
+            context["form"] = form
+            if form.is_valid():
+                try:
+                    text = csv_io.decode_upload(form.cleaned_data["file"])
+                except ValidationError as exc:
+                    form.add_error("file", exc)
+                else:
+                    parsed, errors = spec["parse"](text)
+                    if errors:
+                        context["errors"] = errors
+                    else:
+                        context["preview"] = spec["preview"](parsed)
+                        context["csv_text"] = text
+    return render(request, "portal/manage/csv_import.html", context)
+
+
+@admin_required
+def staff_import(request):
+    return _csv_import(request, "staff")
+
+
+@admin_required
+def group_import(request):
+    return _csv_import(request, "groups")

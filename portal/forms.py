@@ -220,3 +220,10 @@ class AccountForm(PortalModelForm):
         if not value:
             return ""
         return normalize_phone(value)
+
+
+class CsvUploadForm(PortalForm):
+    file = forms.FileField(
+        label="CSV file",
+        widget=forms.ClearableFileInput(attrs={"accept": ".csv,text/csv"}),
+    )

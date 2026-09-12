@@ -4,7 +4,11 @@
 {% block content %}
 <div class="page-head">
   <h1>Staff</h1>
-  <a class="btn primary" href="{% url 'staff_create' %}">+ Add staff</a>
+  <div class="page-actions">
+    <a class="btn primary" href="{% url 'staff_create' %}">+ Add staff</a>
+    <a class="btn" href="{% url 'staff_import' %}">Import CSV</a>
+    <a class="btn ghost" href="{% url 'staff_export' %}">Export CSV</a>
+  </div>
 </div>
 
 <form method="get" class="search-bar">
