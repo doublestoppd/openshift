@@ -17,6 +17,9 @@ approvals, payroll, or patient data.
   gunicorn · Caddy · one Ubuntu DigitalOcean Droplet.
 - Default timezone: `America/Chicago` (shifts expire automatically after
   their calendar date passes in this timezone).
+- **No built-in accounts.** The first administrator is created from the
+  command line (section 2) with a username and password *you* choose;
+  staff never have passwords at all.
 
 ---
 
@@ -52,7 +55,9 @@ PORTAL_ADMIN_PASSWORD='choose-a-long-password' \
 python manage.py runserver
 ```
 
-- Administrator UI: <http://localhost:8000/manage/>
+- Administrator UI: <http://localhost:8000/manage/> — sign in with the
+  username you just created (`cno` in the example above; it is not a
+  built-in account) and the password you set.
 - Staff manual login: <http://localhost:8000/staff/login/>
 - With `SMS_BACKEND=console`, every "sent" SMS (including each staff
   member's personal invitation link) is printed to the runserver console —
@@ -66,8 +71,12 @@ python manage.py test portal
 
 ## 2. Creating administrators
 
-Administrators are created from the command line (there is intentionally no
-self-signup and no admin-management UI):
+**There are no built-in accounts or default passwords.** Every
+administrator — including the very first one — is created from the command
+line (there is intentionally no self-signup and no admin-management UI).
+`cno` and `er_director` throughout this README are just example usernames:
+the username is whatever you pass to the command, and you sign in at
+`/manage/` with that username and the password you set.
 
 ```bash
 PORTAL_ADMIN_PASSWORD='...' python manage.py create_portal_admin <username> \
@@ -242,6 +251,8 @@ ufw allow 443/tcp
 ufw --force enable
 ```
 
+`cno` is simply the username you are choosing here — nothing is
+pre-created — and you will sign in with it and the password you set.
 Use your own mobile number for `--notification-phone` — that is where
 acceptance alerts will be texted during the test. (If you attached a
 DigitalOcean Cloud Firewall to the Droplet, also open TCP 80 and 443
@@ -303,7 +314,8 @@ python manage.py runserver 127.0.0.1:8000
 Detach with `Ctrl-B` then `D`; reattach later with `tmux attach -t portal`.
 
 From your computer or phone, open `https://shifts.example.com/manage/` —
-note the padlock — and sign in as `cno`. With `SMS_BACKEND=console`
+note the padlock — and sign in with the administrator you created in 4.3
+(`cno` in the example) and its password. With `SMS_BACKEND=console`
 nothing touches Twilio: every
 "sent" SMS is printed in the runserver terminal instead, including each
 staff member's personal invitation link. Copy a link into your phone's
@@ -410,6 +422,7 @@ sudo adduser --system --group --home /srv/openshift-portal shiftportal
 
 sudo mkdir -p /srv/openshift-portal/{app,data,backups}
 sudo chown -R shiftportal:shiftportal /srv/openshift-portal
+sudo chmod 750 /srv/openshift-portal/data /srv/openshift-portal/backups   # employee data: service user only
 ```
 
 Use SSH key authentication for your login and disable password SSH auth in
@@ -466,6 +479,10 @@ PORTAL_ADMIN_PASSWORD='<initial password>' ../venv/bin/python manage.py \
 exit
 ```
 
+Administrators sign in at `https://shifts.example.org/manage/` with the
+username chosen above (`cno` here) and that password — no other account
+exists. Create additional administrators the same way (section 6.5).
+
 (Static files are served by the app itself via WhiteNoise, so Caddy needs no
 static-file configuration.)
 
@@ -518,13 +535,22 @@ localhost, so neither is reachable from outside regardless.
 ```bash
 sudo -u shiftportal crontab -e
 # add:
-15 2 * * * /srv/openshift-portal/app/deploy/backup.sh >> /srv/openshift-portal/backups/backup.log 2>&1
+# 08:15 UTC = 3:15 AM Chicago (Droplet clocks run on UTC)
+15 8 * * * /srv/openshift-portal/app/deploy/backup.sh >> /srv/openshift-portal/backups/backup.log 2>&1
 ```
 
 The script uses SQLite's online `.backup` (safe while the app runs), gzips
 the copy into `/srv/openshift-portal/backups/`, and prunes copies older than
 14 days. Also keep a copy of `/etc/openshift-portal/env` somewhere safe
 (password manager) — it holds the secret key and Twilio credentials.
+
+These copies live on the same Droplet, so they do not survive losing the
+Droplet itself. For real disaster recovery also turn on **DigitalOcean
+Backups** for the Droplet (Droplet → Backups; weekly snapshot for a small
+surcharge) or copy the `.gz` files off-box on a schedule (e.g. to a
+DigitalOcean Space with `s3cmd`, or simply `scp` them to another machine).
+Restoring from a Droplet snapshot restores everything — code, database,
+environment file and certificates — in one step.
 
 **Restore procedure:**
 
@@ -548,7 +574,159 @@ set -a; source /etc/openshift-portal/env; set +a;
 sudo systemctl restart openshift-portal
 ```
 
-## 6. How it works (operator summary)
+## 6. Day-to-day operations
+
+Everything here assumes the production layout from section 5: the systemd
+service `openshift-portal` (gunicorn), the environment file
+`/etc/openshift-portal/env`, and the code in `/srv/openshift-portal/app`.
+Where the dev/testing Droplet from section 4 differs, it is called out.
+
+### 6.1 Where things live
+
+| What | Production (section 5) | Dev/testing Droplet (section 4) |
+|---|---|---|
+| Configuration and secrets | `/etc/openshift-portal/env` | `~/openshift/.env` |
+| Application code | `/srv/openshift-portal/app` | `~/openshift` |
+| Database | `/srv/openshift-portal/data/db.sqlite3` | `~/openshift/db.sqlite3` |
+| Application process | `systemctl … openshift-portal` | `runserver` inside `tmux attach -t portal` |
+| HTTPS / reverse proxy | `systemctl … caddy`, `/etc/caddy/Caddyfile` | same |
+| Logs | `journalctl -u openshift-portal` | the tmux window |
+| Backups | `/srv/openshift-portal/backups/` | none |
+
+Most tasks below run `manage.py` as the service user with the production
+settings loaded. Define this helper once per SSH session (or put it in
+`~/.bashrc`):
+
+```bash
+portal() {
+  sudo -u shiftportal -H env PORTAL_ADMIN_PASSWORD="${PORTAL_ADMIN_PASSWORD:-}" \
+    bash -c 'cd /srv/openshift-portal/app && set -a && . /etc/openshift-portal/env && set +a \
+             && exec ../venv/bin/python manage.py "$@"' -- "$@"
+}
+```
+
+Then, for example, `portal create_portal_admin …` or `portal shell -c "…"`.
+On the dev/testing Droplet the equivalent is simply
+`cd ~/openshift && source .venv/bin/activate && python manage.py …`
+(`.env` is read automatically).
+
+### 6.2 Changing configuration (Twilio credentials, base URL, timezone…)
+
+Configuration is read **only when the application starts**, so every
+change is a two-step: edit, then restart.
+
+1. Edit the environment file:
+   ```bash
+   sudo nano /etc/openshift-portal/env        # dev Droplet: nano ~/openshift/.env
+   ```
+   For Twilio, the four lines that matter are:
+   ```
+   SMS_BACKEND=twilio
+   TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+   TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+   TWILIO_FROM_NUMBER=+13125550100
+   ```
+   (`SMS_BACKEND=console` prints messages to the log instead of sending —
+   switch it to `twilio` when you add real credentials.)
+2. Restart the application:
+   ```bash
+   sudo systemctl restart openshift-portal
+   ```
+   Dev Droplet: press `Ctrl-C` in the tmux window and run
+   `python manage.py runserver 127.0.0.1:8000` again.
+3. Confirm it came back up and read the last few log lines:
+   ```bash
+   systemctl status openshift-portal --no-pager
+   sudo journalctl -u openshift-portal -n 30 --no-pager
+   ```
+4. Send yourself a test text (6.3).
+
+Changing `DJANGO_ALLOWED_HOSTS` / `PORTAL_BASE_URL` (new domain) works the
+same way, plus the hostname in `/etc/caddy/Caddyfile` and
+`sudo systemctl reload caddy`.
+
+### 6.3 Testing Twilio without creating a shift
+
+```bash
+portal shell -c "from portal.sms import deliver; print(deliver('+13125550147', 'Open Shift Portal test message'))"
+```
+
+Prints `('SM…', '')` when Twilio accepted the message, or `('', '<error>')`
+with Twilio's explanation. (This direct test is not recorded on the SMS Log
+page; real invitations and alerts are.) Common errors:
+
+| Twilio error | Meaning | Fix |
+|---|---|---|
+| 21608 | Trial account: destination not verified | Verify the number in the Twilio Console, or upgrade |
+| 20003 | Authentication failed | Wrong Account SID / Auth Token |
+| 21212 / 21606 | Invalid or non-SMS "from" number | Check `TWILIO_FROM_NUMBER` (E.164, e.g. `+1312…`) |
+| 21610 | Recipient replied STOP earlier | They must text START to your number |
+| 30034 / 30007 | Carrier filtering / A2P registration | Complete A2P 10DLC registration (section 4.4) |
+
+### 6.4 Restarting, status, and logs
+
+```bash
+sudo systemctl status openshift-portal caddy --no-pager   # is everything running?
+sudo systemctl restart openshift-portal                   # restart the app
+sudo systemctl reload caddy                               # after editing the Caddyfile
+sudo journalctl -u openshift-portal -f                    # live application log (Ctrl-C stops)
+sudo journalctl -u openshift-portal --since "1 hour ago"  # recent history
+sudo journalctl -u caddy -n 50 --no-pager                 # HTTPS / certificate issues
+```
+
+Per-message SMS results are on the **SMS Log** page in the admin UI; the
+journal shows the same failures plus anything else that goes wrong.
+Both services start automatically after a reboot.
+
+### 6.5 Administrator accounts
+
+There are no built-in accounts. `create_portal_admin` both creates and
+updates:
+
+```bash
+# Add an administrator (password comes from the environment variable)
+PORTAL_ADMIN_PASSWORD='a-long-passphrase' portal create_portal_admin er_director \
+    --departments ER --notification-phone "312-555-0101" --name "Sam Lee"
+
+# Change departments or the notification number: run it again with new values
+portal create_portal_admin er_director --departments ER MED_SURG
+
+# Reset a forgotten password: run it again with the variable set
+PORTAL_ADMIN_PASSWORD='new-passphrase' portal create_portal_admin er_director --departments ER
+
+# List administrators
+portal shell -c "from portal.models import AdminProfile; [print(p.user.username, 'active' if p.user.is_active else 'DISABLED', p.allowed_departments) for p in AdminProfile.objects.all()]"
+
+# Remove someone's access (keeps their shift history; deleting is blocked on purpose)
+portal shell -c "from django.contrib.auth.models import User; u = User.objects.get(username='er_director'); u.is_active = False; u.save()"
+```
+
+Administrators change their own password and notification number on the
+**Account** page.
+
+### 6.6 Updating the application
+
+Follow section 5.9 exactly — in particular never skip `collectstatic`:
+the site serves fingerprinted static files, and after a code update
+without it **every page returns a 500 error** ("Missing staticfiles
+manifest entry") until it is run.
+
+### 6.7 Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| "Bad Request (400)" on every page | Hostname not in `DJANGO_ALLOWED_HOSTS` | Edit the env file, restart |
+| "CSRF verification failed" on form submit | `PORTAL_BASE_URL` is not the exact `https://` address you are using | Fix the env file (and use that address), restart |
+| Caddy shows a 502 page | gunicorn is not running — usually a bad env value (e.g. empty `DJANGO_SECRET_KEY`) | `sudo journalctl -u openshift-portal -n 50` shows the reason; fix, restart |
+| Every page 500 after an update | `collectstatic` was skipped | Run it (5.9), restart |
+| SMS Log says "Twilio is not configured" | `TWILIO_*` missing, or the service was not restarted after editing | Check the env file, restart |
+| "Sent to Twilio" but texts never arrive | Trial account (unverified number), A2P 10DLC not registered, recipient sent STOP | See 6.3 error table |
+| Certificate error / Caddy can't get a certificate | DNS not pointing at this Droplet, or ports 80/443 blocked | `dig +short your-host`, check the firewall, `journalctl -u caddy` |
+| "Too many attempts" on a login page | Rate limit (8 failures / 15 min per IP and per badge or username) | Wait 15 minutes, or clear: `portal shell -c "from portal.models import RateLimitEvent; RateLimitEvent.objects.all().delete()"` |
+| A past shift is still listed as open | Expiry is applied when a page loads | Reload the dashboard |
+| Database "is locked" errors in the log | Two processes writing at once (rare with SQLite) | Retry; if persistent, check for a stray second copy of the app running |
+
+## 7. How it works (operator summary)
 
 - **Administrators** sign in at `/manage/` with username/password. Each
   account is limited server-side to its assigned department(s). Navigation:
@@ -573,7 +751,7 @@ sudo systemctl restart openshift-portal
   attempts per 15 minutes per IP and per badge/username (configurable via
   environment variables).
 
-## 7. Implementation assumptions
+## 8. Implementation assumptions
 
 Decisions made where the specification left room:
 
@@ -611,7 +789,7 @@ Decisions made where the specification left room:
 10. **`incentive_amount` is capped at 99,999.99** by the decimal field
     definition; amounts display without trailing `.00`.
 
-## 8. Repository layout
+## 9. Repository layout
 
 ```
 config/            Django project (settings, urls, wsgi)
