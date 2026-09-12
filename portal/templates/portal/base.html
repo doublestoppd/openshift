@@ -1,0 +1,21 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>{% block title %}Open Shift Portal{% endblock %}</title>
+<link rel="stylesheet" href="{% static 'portal/style.css' %}">
+</head>
+<body>
+{% block nav %}{% endblock %}
+<main class="container {% block mainclass %}{% endblock %}">
+{% if messages %}
+  {% for message in messages %}
+    <div class="flash flash-{{ message.tags }}">{{ message }}</div>
+  {% endfor %}
+{% endif %}
+{% block content %}{% endblock %}
+</main>
+</body>
+</html>

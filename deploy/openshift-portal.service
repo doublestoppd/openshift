@@ -1,0 +1,35 @@
+# systemd unit for gunicorn serving the Open Shift Response Portal.
+# Install at /etc/systemd/system/openshift-portal.service
+#
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now openshift-portal
+
+[Unit]
+Description=Open Shift Response Portal (gunicorn)
+After=network.target
+
+[Service]
+Type=notify
+User=shiftportal
+Group=shiftportal
+WorkingDirectory=/srv/openshift-portal/app
+# All secrets live in this root-owned file, readable only by the service.
+EnvironmentFile=/etc/openshift-portal/env
+ExecStart=/srv/openshift-portal/venv/bin/gunicorn config.wsgi:application \
+    --bind 127.0.0.1:8000 \
+    --workers 2 \
+    --timeout 60 \
+    --access-logfile - \
+    --error-logfile -
+Restart=on-failure
+RestartSec=3
+
+# Hardening: the app only needs to write its SQLite data directory.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/openshift-portal/data
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,24 @@
+{% extends "portal/manage/base.html" %}
+{% block title %}Groups{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Staff groups</h1>
+  <a class="btn primary" href="{% url 'group_create' %}">+ New group</a>
+</div>
+<p class="muted">Reusable labels that make texting faster, e.g. “ER RNs”, “Weekend Staff”.</p>
+
+{% for group in groups %}
+  <div class="card row-between">
+    <div>
+      <strong>{{ group.name }}</strong>
+      <span class="muted">{{ group.member_count }} member{{ group.member_count|pluralize }}</span>
+    </div>
+    <div class="cell-actions">
+      <a class="btn small-btn" href="{% url 'group_edit' group.pk %}">Edit</a>
+      <a class="btn small-btn danger-ghost" href="{% url 'group_delete' group.pk %}">Delete</a>
+    </div>
+  </div>
+{% empty %}
+  <div class="card"><p>No groups yet.</p></div>
+{% endfor %}
+{% endblock %}

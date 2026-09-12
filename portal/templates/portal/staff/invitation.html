@@ -1,0 +1,86 @@
+{% extends "portal/base.html" %}
+{% block title %}Open Shift — {{ shift.get_department_display }} {{ shift.get_shift_type_display }}{% endblock %}
+{% block mainclass %}narrow staff-page{% endblock %}
+{% block content %}
+
+{% if logged_in_staff %}
+  <p class="small"><a href="{% url 'staff_invitation_list' %}">&larr; All my invitations</a></p>
+{% endif %}
+
+<div class="card shift-hero">
+  <div class="hero-dept">{{ shift.get_department_display }} — {{ shift.get_shift_type_display }}</div>
+  <div class="hero-date">{{ shift.shift_date|date:"l, F j" }}</div>
+  <div class="hero-roles">{{ shift.roles_display }}</div>
+  {% if shift.incentive_amount %}
+    <div class="hero-bonus">${{ shift.incentive_display }} bonus</div>
+  {% endif %}
+  {% if shift.note %}<p class="hero-note">{{ shift.note }}</p>{% endif %}
+</div>
+
+{% if current %}
+  <div class="card current-response">
+    <strong>Your current response:</strong>
+    {% if current.response_type == "ACCEPT_FULL" %}
+      I can work the full shift.
+    {% elif current.response_type == "ACCEPT_PARTIAL" %}
+      I can work part of the shift ({{ current.partial_window_display }}).
+    {% else %}
+      I cannot work this shift.
+    {% endif %}
+    {% if current.response_type != "DECLINED" %}
+      <p class="muted small">
+        Your availability has been recorded. The department will contact you
+        if you are selected for the shift.
+      </p>
+    {% endif %}
+    {% if accepting %}
+      <p class="muted small">You can change your response below while this shift stays open.</p>
+    {% endif %}
+  </div>
+{% endif %}
+
+{% if accepting %}
+  <div class="response-buttons">
+    <form method="post" action="{{ post_url }}">
+      {% csrf_token %}
+      <input type="hidden" name="response_type" value="ACCEPT_FULL">
+      <button type="submit" class="btn big respond-full">I can work the full shift</button>
+    </form>
+
+    <details class="partial-details" {% if partial_open %}open{% endif %}>
+      <summary class="btn big respond-partial">I can work part of the shift</summary>
+      <form method="post" action="{{ post_url }}" class="partial-form">
+        {% csrf_token %}
+        <input type="hidden" name="response_type" value="ACCEPT_PARTIAL">
+        {% if partial_form.non_field_errors %}
+          <p class="error">{{ partial_form.non_field_errors.0 }}</p>
+        {% endif %}
+        <div class="field">
+          <label for="{{ partial_form.partial_start_time.id_for_label }}">Available from</label>
+          {{ partial_form.partial_start_time }}
+          {% for error in partial_form.partial_start_time.errors %}<p class="error">{{ error }}</p>{% endfor %}
+        </div>
+        <div class="field">
+          <label for="{{ partial_form.partial_end_time.id_for_label }}">Available until</label>
+          {{ partial_form.partial_end_time }}
+          {% for error in partial_form.partial_end_time.errors %}<p class="error">{{ error }}</p>{% endfor %}
+        </div>
+        <p class="muted small">An end time earlier than the start time means it runs past midnight.</p>
+        <button type="submit" class="btn big respond-partial-submit">Send my partial availability</button>
+      </form>
+    </details>
+
+    <form method="post" action="{{ post_url }}">
+      {% csrf_token %}
+      <input type="hidden" name="response_type" value="DECLINED">
+      <button type="submit" class="btn big respond-decline">I cannot work this shift</button>
+    </form>
+  </div>
+{% else %}
+  <div class="card closed-note">
+    <strong>This shift is no longer accepting responses.</strong>
+    {% if current %}<p class="muted small">Your last recorded response is shown above.</p>{% endif %}
+  </div>
+{% endif %}
+
+{% endblock %}

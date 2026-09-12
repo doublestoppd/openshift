@@ -1,0 +1,33 @@
+{% extends "portal/base.html" %}
+{% block title %}Administrator sign in{% endblock %}
+{% block mainclass %}narrow{% endblock %}
+{% block content %}
+<div class="staff-header">
+  <h1>Administrator sign in</h1>
+</div>
+
+{% if blocked %}
+  <div class="flash flash-error">
+    Too many failed sign-in attempts. Please wait about 15 minutes and try again.
+  </div>
+{% endif %}
+
+<form method="post" class="card form-card">
+  {% csrf_token %}
+  {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+  {% if form.non_field_errors %}
+    <div class="flash flash-error">{{ form.non_field_errors.0 }}</div>
+  {% endif %}
+  <div class="field">
+    <label for="{{ form.username.id_for_label }}">Username</label>
+    {{ form.username }}
+  </div>
+  <div class="field">
+    <label for="{{ form.password.id_for_label }}">Password</label>
+    {{ form.password }}
+  </div>
+  <button type="submit" class="btn primary big">Sign in</button>
+</form>
+
+<p class="center muted small"><a href="{% url 'staff_login' %}">Staff sign in</a></p>
+{% endblock %}

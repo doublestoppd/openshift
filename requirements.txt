@@ -1,0 +1,5 @@
+Django==5.2.6
+twilio==9.6.3
+gunicorn==23.0.0
+whitenoise==6.9.0
+python-dotenv==1.1.0

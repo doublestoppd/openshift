@@ -1,0 +1,17 @@
+{% extends "portal/manage/base.html" %}
+{% block title %}Open Shifts{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Open Shifts</h1>
+  <a class="btn primary" href="{% url 'shift_create' %}">+ New Open Shift</a>
+</div>
+
+{% for shift in shifts %}
+  {% include "portal/manage/_shift_card.html" with shift=shift show_actions=True %}
+{% empty %}
+  <div class="card">
+    <p>No open shifts right now.</p>
+    <p class="muted small">Create one with “+ New Open Shift”. Closed and expired shifts are under History.</p>
+  </div>
+{% endfor %}
+{% endblock %}

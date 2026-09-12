@@ -1,0 +1,84 @@
+{% extends "portal/manage/base.html" %}
+{% block title %}Responses — {{ shift }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ shift.get_department_display }} — {{ shift.get_shift_type_display }}</h1>
+    <p class="muted">
+      {{ shift.shift_date|date:"l, F j" }} · {{ shift.roles_display }}
+      {% if shift.incentive_amount %} · ${{ shift.incentive_display }} bonus{% endif %}
+      · <span class="pill status-{{ shift.effective_status|lower }}">{{ shift.effective_status|title }}</span>
+    </p>
+  </div>
+  {% if shift.is_open_for_responses %}
+    <a class="btn primary" href="{% url 'shift_recipients' shift.pk %}">Send / Resend SMS</a>
+  {% endif %}
+</div>
+
+{% if invited_count == 0 %}
+  <div class="card"><p>No invitations have been sent for this shift yet.</p></div>
+{% endif %}
+
+<section class="card response-section">
+  <h2><span class="count-full">Full Shift</span> ({{ sections.full|length }})</h2>
+  {% for invitation in sections.full %}
+    <div class="response-row">
+      <div>
+        <strong>{{ invitation.staff.name }}</strong>
+        <span class="pill">{{ invitation.staff.role }}</span>
+        <span class="muted small">#{{ invitation.staff.badge_id }}</span>
+        {% if not invitation.staff.is_active %}<span class="pill pill-declined">inactive</span>{% endif %}
+      </div>
+      <div class="muted small">Can work the full shift · responded {{ invitation.response.updated_at|date:"M j, g:i A" }}</div>
+    </div>
+  {% empty %}<p class="muted small">None yet.</p>{% endfor %}
+</section>
+
+<section class="card response-section">
+  <h2><span class="count-partial">Partial Shift</span> ({{ sections.partial|length }})</h2>
+  {% for invitation in sections.partial %}
+    <div class="response-row">
+      <div>
+        <strong>{{ invitation.staff.name }}</strong>
+        <span class="pill">{{ invitation.staff.role }}</span>
+        <span class="muted small">#{{ invitation.staff.badge_id }}</span>
+        {% if not invitation.staff.is_active %}<span class="pill pill-declined">inactive</span>{% endif %}
+      </div>
+      <div class="muted small">
+        Available {{ invitation.response.partial_window_display }}
+        · responded {{ invitation.response.updated_at|date:"M j, g:i A" }}
+      </div>
+    </div>
+  {% empty %}<p class="muted small">None yet.</p>{% endfor %}
+</section>
+
+<section class="card response-section">
+  <h2><span class="count-declined">Declined</span> ({{ sections.declined|length }})</h2>
+  {% for invitation in sections.declined %}
+    <div class="response-row">
+      <div>
+        <strong>{{ invitation.staff.name }}</strong>
+        <span class="pill">{{ invitation.staff.role }}</span>
+        <span class="muted small">#{{ invitation.staff.badge_id }}</span>
+      </div>
+      <div class="muted small">Cannot work · responded {{ invitation.response.updated_at|date:"M j, g:i A" }}</div>
+    </div>
+  {% empty %}<p class="muted small">None.</p>{% endfor %}
+</section>
+
+<section class="card response-section">
+  <h2><span class="count-none">No Response</span> ({{ sections.no_response|length }})</h2>
+  {% for invitation in sections.no_response %}
+    <div class="response-row">
+      <div>
+        <strong>{{ invitation.staff.name }}</strong>
+        <span class="pill">{{ invitation.staff.role }}</span>
+        <span class="muted small">#{{ invitation.staff.badge_id }}</span>
+      </div>
+      <div class="muted small">
+        {% if invitation.last_sent_at %}Last texted {{ invitation.last_sent_at|date:"M j, g:i A" }}{% else %}Invitation not sent yet{% endif %}
+      </div>
+    </div>
+  {% empty %}<p class="muted small">None.</p>{% endfor %}
+</section>
+{% endblock %}

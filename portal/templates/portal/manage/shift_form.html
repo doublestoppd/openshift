@@ -1,0 +1,21 @@
+{% extends "portal/manage/base.html" %}
+{% block title %}{% if shift %}Edit shift{% else %}New open shift{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{% if shift %}Edit shift{% else %}New open shift{% endif %}</h1>
+</div>
+
+<form method="post" class="card form-card">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  {{ form.as_div }}
+  <div class="btn-row">
+    <button type="submit" class="btn">Save</button>
+    <button type="submit" name="save_and_recipients" value="1" class="btn primary">
+      Save &amp; Choose Recipients
+    </button>
+    <a class="btn ghost" href="{% url 'manage_dashboard' %}">Cancel</a>
+  </div>
+  <p class="muted small">Saving never sends SMS. Texts go out only from the send screen.</p>
+</form>
+{% endblock %}

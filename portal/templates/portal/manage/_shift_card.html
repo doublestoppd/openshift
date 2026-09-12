@@ -1,0 +1,41 @@
+{# Expects: shift (annotated with *_count), show_actions (bool) #}
+<div class="card shift-card">
+  <div class="shift-card-head">
+    <div>
+      <div class="shift-title">{{ shift.get_department_display }} — {{ shift.get_shift_type_display }}</div>
+      <div class="shift-date">{{ shift.shift_date|date:"l, F j" }}</div>
+    </div>
+    {% if not show_actions %}
+      <span class="pill status-{{ shift.effective_status|lower }}">{{ shift.effective_status|title }}</span>
+    {% endif %}
+  </div>
+  <div class="shift-meta">
+    <span class="pill">{{ shift.roles_display }}</span>
+    {% if shift.incentive_amount %}<span class="pill pill-bonus">${{ shift.incentive_display }} bonus</span>{% endif %}
+  </div>
+  {% if shift.note %}<p class="muted small">{{ shift.note }}</p>{% endif %}
+  <p class="counts">
+    {% if shift.invited_count %}
+      <span class="count-full">{{ shift.full_count }} full</span> ·
+      <span class="count-partial">{{ shift.partial_count }} partial</span> ·
+      <span class="count-declined">{{ shift.declined_count }} declined</span> ·
+      <span class="count-none">{{ shift.no_response_count }} no response</span>
+    {% else %}
+      <span class="muted">No invitations sent yet</span>
+    {% endif %}
+  </p>
+  <div class="shift-actions">
+    <a class="btn small-btn" href="{% url 'shift_responses' shift.pk %}">View Responses</a>
+    {% if show_actions %}
+      <a class="btn small-btn primary" href="{% url 'shift_recipients' shift.pk %}">
+        {% if shift.invited_count %}Send / Resend SMS{% else %}Send SMS{% endif %}
+      </a>
+      <a class="btn small-btn ghost" href="{% url 'shift_edit' shift.pk %}">Edit</a>
+      <form method="post" action="{% url 'shift_close' shift.pk %}" class="inline-form"
+            onsubmit="return confirm('Close this shift? Staff will no longer be able to respond.');">
+        {% csrf_token %}
+        <button type="submit" class="btn small-btn danger-ghost">Close</button>
+      </form>
+    {% endif %}
+  </div>
+</div>

@@ -1,0 +1,53 @@
+{% extends "portal/manage/base.html" %}
+{% block title %}Staff{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Staff</h1>
+  <a class="btn primary" href="{% url 'staff_create' %}">+ Add staff</a>
+</div>
+
+<form method="get" class="search-bar">
+  <input type="search" name="q" value="{{ query }}" placeholder="Search by name or badge ID">
+  <button type="submit" class="btn">Search</button>
+  {% if query %}<a class="btn ghost" href="{% url 'staff_list' %}">Clear</a>{% endif %}
+</form>
+
+<div class="card table-card">
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr><th>Name</th><th>Badge ID</th><th>Role</th><th>Mobile</th><th>Groups</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for person in people %}
+        <tr class="{% if not person.is_active %}row-inactive{% endif %}">
+          <td>{{ person.name }}</td>
+          <td>{{ person.badge_id }}</td>
+          <td>{{ person.role }}</td>
+          <td>{{ person.mobile_phone }}</td>
+          <td class="muted small">
+            {% for group in person.groups.all %}{{ group.name }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}
+          </td>
+          <td>
+            {% if person.is_active %}<span class="pill pill-full">Active</span>
+            {% else %}<span class="pill pill-declined">Inactive</span>{% endif %}
+          </td>
+          <td class="cell-actions">
+            <a class="btn small-btn" href="{% url 'staff_edit' person.pk %}">Edit</a>
+            <form method="post" action="{% url 'staff_toggle_active' person.pk %}" class="inline-form"
+                  {% if person.is_active %}onsubmit="return confirm('Deactivate {{ person.name|escapejs }}? They will no longer be able to respond or receive invitations.');"{% endif %}>
+              {% csrf_token %}
+              <button type="submit" class="btn small-btn {% if person.is_active %}danger-ghost{% else %}ghost{% endif %}">
+                {% if person.is_active %}Deactivate{% else %}Reactivate{% endif %}
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="muted">No staff found{% if query %} for “{{ query }}”{% endif %}.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "portal/base.html" %}
+{% block title %}Sign in — Open Shift Portal{% endblock %}
+{% block mainclass %}narrow{% endblock %}
+{% block content %}
+<div class="staff-header">
+  <h1>Open Shift Portal</h1>
+  <p class="muted">Check and respond to open shift invitations.</p>
+</div>
+
+{% if blocked %}
+  <div class="flash flash-error">
+    Too many attempts. Please wait about 15 minutes and try again.
+  </div>
+{% endif %}
+
+<form method="post" class="card form-card">
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+    <div class="flash flash-error">{{ form.non_field_errors.0 }}</div>
+  {% endif %}
+  <div class="field">
+    <label for="{{ form.badge_id.id_for_label }}">{{ form.badge_id.label }}</label>
+    {{ form.badge_id }}
+    {% for error in form.badge_id.errors %}<p class="error">{{ error }}</p>{% endfor %}
+  </div>
+  <div class="field">
+    <label for="{{ form.phone_last4.id_for_label }}">{{ form.phone_last4.label }}</label>
+    {{ form.phone_last4 }}
+    {% for error in form.phone_last4.errors %}<p class="error">{{ error }}</p>{% endfor %}
+  </div>
+  <button type="submit" class="btn primary big">View my invitations</button>
+  <p class="muted small">
+    If you received a text with a personal link, you can simply tap that link
+    instead of signing in here.
+  </p>
+</form>
+
+<p class="center muted small"><a href="{% url 'manage_login' %}">Administrator sign in</a></p>
+{% endblock %}

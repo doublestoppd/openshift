@@ -1,0 +1,31 @@
+{% extends "portal/manage/base.html" %}
+{% block title %}Account{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Account</h1></div>
+
+<div class="card">
+  <p><strong>Signed in as:</strong> {{ request.user.get_username }}
+    {% if request.user.get_full_name %}({{ request.user.get_full_name }}){% endif %}</p>
+  <p><strong>Departments you manage:</strong>
+    {% for dept in profile.department_access.all %}
+      <span class="pill">{{ dept.get_department_display }}</span>
+    {% empty %}<span class="muted">none assigned</span>{% endfor %}
+  </p>
+  <p class="muted small">Department access is assigned by the operator (see README: create_portal_admin).</p>
+</div>
+
+<form method="post" class="card form-card">
+  {% csrf_token %}
+  <h2>SMS notifications</h2>
+  {{ form.non_field_errors }}
+  {{ form.as_div }}
+  <div class="btn-row">
+    <button type="submit" class="btn primary">Save</button>
+  </div>
+</form>
+
+<div class="card">
+  <h2>Password</h2>
+  <a class="btn" href="{% url 'manage_password_change' %}">Change password</a>
+</div>
+{% endblock %}

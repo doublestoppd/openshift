@@ -1,0 +1,17 @@
+{% extends "portal/manage/base.html" %}
+{% block title %}{% if group %}Edit group{% else %}New group{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{% if group %}Edit “{{ group.name }}”{% else %}New group{% endif %}</h1>
+</div>
+
+<form method="post" class="card form-card">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  {{ form.as_div }}
+  <div class="btn-row">
+    <button type="submit" class="btn primary">Save</button>
+    <a class="btn ghost" href="{% url 'group_list' %}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

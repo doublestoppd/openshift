@@ -1,0 +1,15 @@
+{% extends "portal/manage/base.html" %}
+{% block title %}Delete group{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Delete group</h1></div>
+
+<form method="post" class="card form-card">
+  {% csrf_token %}
+  <p class="confirm-question">Delete the group “{{ group.name }}”?</p>
+  <p class="muted">Staff records and past invitations are not affected; only the label is removed.</p>
+  <div class="btn-row">
+    <button type="submit" class="btn danger">Delete group</button>
+    <a class="btn ghost" href="{% url 'group_list' %}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

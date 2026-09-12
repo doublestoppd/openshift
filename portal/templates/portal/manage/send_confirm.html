@@ -1,0 +1,42 @@
+{% extends "portal/manage/base.html" %}
+{% block title %}Confirm send — {{ shift }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Confirm send</h1>
+</div>
+
+<form method="post" action="{% url 'shift_send' shift.pk %}" class="card form-card">
+  {% csrf_token %}
+  {% for person in recipients %}
+    <input type="hidden" name="staff_ids" value="{{ person.pk }}">
+  {% endfor %}
+
+  <p class="confirm-question">
+    Send this open shift to <strong>{{ recipients|length }}</strong>
+    staff member{{ recipients|length|pluralize }}?
+  </p>
+  <p class="muted">
+    {{ shift.get_department_display }} — {{ shift.get_shift_type_display }},
+    {{ shift.shift_date|date:"D n/j" }}
+    {% if shift.incentive_amount %} · ${{ shift.incentive_display }} bonus{% endif %}
+  </p>
+
+  <details class="recipient-preview">
+    <summary>Show recipient list</summary>
+    <ul>
+      {% for person in recipients %}
+        <li>{{ person.name }} <span class="muted small">{{ person.role }} · #{{ person.badge_id }}</span></li>
+      {% endfor %}
+    </ul>
+  </details>
+
+  <div class="btn-row">
+    <button type="submit" class="btn primary">Send {{ recipients|length }} text{{ recipients|length|pluralize }} now</button>
+    <button type="submit" class="btn ghost"
+            formaction="{% url 'shift_recipients' shift.pk %}" name="stage" value="edit">
+      &larr; Change recipients
+    </button>
+  </div>
+  <p class="muted small">Each person receives their own personal response link. Duplicates have already been removed.</p>
+</form>
+{% endblock %}

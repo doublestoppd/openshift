@@ -1,0 +1,22 @@
+{% extends "portal/base.html" %}
+{% block nav %}
+<header class="topbar">
+  <div class="container topbar-inner">
+    <a class="brand" href="{% url 'manage_dashboard' %}">Open Shift Portal</a>
+    <nav class="nav">
+      {% with current=request.resolver_match.url_name %}
+      <a href="{% url 'manage_dashboard' %}" {% if current == 'manage_dashboard' %}class="active"{% endif %}>Open Shifts</a>
+      <a href="{% url 'staff_list' %}" {% if current == 'staff_list' %}class="active"{% endif %}>Staff</a>
+      <a href="{% url 'group_list' %}" {% if current == 'group_list' %}class="active"{% endif %}>Groups</a>
+      <a href="{% url 'sms_log' %}" {% if current == 'sms_log' %}class="active"{% endif %}>SMS Log</a>
+      <a href="{% url 'manage_history' %}" {% if current == 'manage_history' %}class="active"{% endif %}>History</a>
+      <a href="{% url 'manage_account' %}" {% if current == 'manage_account' %}class="active"{% endif %}>Account</a>
+      {% endwith %}
+      <form method="post" action="{% url 'manage_logout' %}" class="inline-form">
+        {% csrf_token %}
+        <button type="submit" class="linklike">Sign out</button>
+      </form>
+    </nav>
+  </div>
+</header>
+{% endblock %}

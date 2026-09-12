@@ -1,0 +1,35 @@
+{% extends "portal/manage/base.html" %}
+{% block title %}Send results — {{ shift }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Send results</h1>
+</div>
+
+<div class="card">
+  <p class="confirm-question">
+    <span class="count-full">{{ sent|length }}</span> message{{ sent|length|pluralize }} submitted to Twilio.
+    {% if failed %}<br><span class="count-declined">{{ failed|length }}</span> failed.{% endif %}
+  </p>
+
+  {% if failed %}
+    <div class="flash flash-error">
+      <strong>Failed recipients:</strong>
+      <ul>
+        {% for person in failed %}<li>{{ person.name }} ({{ person.mobile_phone }})</li>{% endfor %}
+      </ul>
+      <p class="small">Details are in the SMS Log. You can retry below.</p>
+    </div>
+    <form method="post" action="{% url 'shift_recipients' shift.pk %}" class="inline-form">
+      {% csrf_token %}
+      {% for person in failed %}<input type="hidden" name="staff_ids" value="{{ person.pk }}">{% endfor %}
+      <button type="submit" class="btn">Retry failed ({{ failed|length }})</button>
+    </form>
+  {% endif %}
+
+  <div class="btn-row">
+    <a class="btn primary" href="{% url 'shift_responses' shift.pk %}">View Responses</a>
+    <a class="btn ghost" href="{% url 'manage_dashboard' %}">Back to Open Shifts</a>
+    <a class="btn ghost" href="{% url 'sms_log' %}?shift={{ shift.pk }}">SMS Log for this shift</a>
+  </div>
+</div>
+{% endblock %}

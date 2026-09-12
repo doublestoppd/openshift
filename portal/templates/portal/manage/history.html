@@ -1,0 +1,22 @@
+{% extends "portal/manage/base.html" %}
+{% block title %}History{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>History</h1>
+  <p class="muted">Closed and expired shifts. Responses can no longer change.</p>
+</div>
+
+{% for shift in page %}
+  {% include "portal/manage/_shift_card.html" with shift=shift show_actions=False %}
+{% empty %}
+  <div class="card"><p>No closed or expired shifts yet.</p></div>
+{% endfor %}
+
+{% if page.has_other_pages %}
+  <div class="pager">
+    {% if page.has_previous %}<a class="btn small-btn" href="?page={{ page.previous_page_number }}">&larr; Newer</a>{% endif %}
+    <span class="muted">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+    {% if page.has_next %}<a class="btn small-btn" href="?page={{ page.next_page_number }}">Older &rarr;</a>{% endif %}
+  </div>
+{% endif %}
+{% endblock %}

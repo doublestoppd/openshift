@@ -1,0 +1,42 @@
+{% extends "portal/base.html" %}
+{% block title %}My open invitations{% endblock %}
+{% block mainclass %}narrow staff-page{% endblock %}
+{% block content %}
+<div class="staff-header row-between">
+  <div>
+    <h1>My open invitations</h1>
+    <p class="muted">{{ staff.name }}</p>
+  </div>
+  <form method="post" action="{% url 'staff_logout' %}">
+    {% csrf_token %}
+    <button type="submit" class="linklike">Sign out</button>
+  </form>
+</div>
+
+{% for invitation in invitations %}
+  <a class="card invite-card" href="{% url 'staff_invitation_detail' invitation.pk %}">
+    <div class="hero-dept">{{ invitation.shift.get_department_display }} — {{ invitation.shift.get_shift_type_display }}</div>
+    <div>{{ invitation.shift.shift_date|date:"l, F j" }}</div>
+    {% if invitation.shift.incentive_amount %}
+      <div class="hero-bonus">${{ invitation.shift.incentive_display }} bonus</div>
+    {% endif %}
+    <div class="small">
+      {% if invitation.current_response %}
+        {% if invitation.current_response.response_type == "ACCEPT_FULL" %}
+          <span class="pill pill-full">Responded: full shift</span>
+        {% elif invitation.current_response.response_type == "ACCEPT_PARTIAL" %}
+          <span class="pill pill-partial">Responded: partial ({{ invitation.current_response.partial_window_display }})</span>
+        {% else %}
+          <span class="pill pill-declined">Responded: cannot work</span>
+        {% endif %}
+      {% else %}
+        <span class="pill">Not answered yet — tap to respond</span>
+      {% endif %}
+    </div>
+  </a>
+{% empty %}
+  <div class="card">
+    <p>You have no open shift invitations right now.</p>
+  </div>
+{% endfor %}
+{% endblock %}

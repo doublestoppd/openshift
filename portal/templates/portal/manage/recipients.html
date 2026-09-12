@@ -1,0 +1,107 @@
+{% extends "portal/manage/base.html" %}
+{% block title %}Choose recipients — {{ shift }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Choose recipients</h1>
+    <p class="muted">
+      {{ shift.get_department_display }} — {{ shift.get_shift_type_display }},
+      {{ shift.shift_date|date:"l, F j" }} · {{ shift.roles_display }}
+      {% if shift.incentive_amount %} · ${{ shift.incentive_display }} bonus{% endif %}
+    </p>
+  </div>
+</div>
+
+<form method="post" id="recipient-form">
+  {% csrf_token %}
+
+  {% if has_been_sent %}
+  <section class="card">
+    <h2>Quick picks</h2>
+    <p class="muted small">Based on invitations already sent for this shift.</p>
+    <label class="check-row">
+      <input type="checkbox" name="include_no_response" value="1">
+      Everyone who has not responded <span class="muted">({{ no_response_ids|length }})</span>
+    </label>
+    <label class="check-row">
+      <input type="checkbox" name="include_declined" value="1">
+      Everyone who previously declined <span class="muted">({{ declined_ids|length }})</span>
+    </label>
+  </section>
+  {% endif %}
+
+  <section class="card">
+    <h2>Groups</h2>
+    {% for group in groups %}
+      <label class="check-row">
+        <input type="checkbox" name="group_ids" value="{{ group.pk }}"
+               {% if group.pk in preselected_group_ids %}checked{% endif %}>
+        {{ group.name }} <span class="muted">({{ group.active_members }} active member{{ group.active_members|pluralize }})</span>
+      </label>
+    {% empty %}
+      <p class="muted small">No groups yet. You can create them under Groups.</p>
+    {% endfor %}
+  </section>
+
+  <section class="card">
+    <h2>Individual staff</h2>
+    <input type="search" id="staff-filter" placeholder="Filter by name or badge ID" autocomplete="off">
+    <p class="muted small">Staff matching the requested roles ({{ shift.roles_display }}) are listed first; anyone can be selected.</p>
+    <div class="staff-pick-list">
+      {% for person in staff %}
+        <label class="check-row staff-row" data-name="{{ person.name|lower }}" data-badge="{{ person.badge_id|lower }}">
+          <input type="checkbox" name="staff_ids" value="{{ person.pk }}" {% if person.preselected %}checked{% endif %}>
+          {{ person.name }}
+          <span class="pill {% if person.matches_roles %}pill-match{% endif %}">{{ person.role }}</span>
+          <span class="muted small">#{{ person.badge_id }}</span>
+        </label>
+      {% empty %}
+        <p class="muted small">No active staff in the directory yet.</p>
+      {% endfor %}
+    </div>
+  </section>
+
+  <div class="sticky-bar">
+    <span id="recipient-count" aria-live="polite">0 recipients selected</span>
+    <button type="submit" class="btn primary">Continue</button>
+  </div>
+</form>
+
+{{ group_members_json|json_script:"group-members" }}
+{{ no_response_ids|json_script:"no-response-ids" }}
+{{ declined_ids|json_script:"declined-ids" }}
+<script>
+(function () {
+  var groupMembers = JSON.parse(document.getElementById("group-members").textContent);
+  var noResponse = JSON.parse(document.getElementById("no-response-ids").textContent);
+  var declined = JSON.parse(document.getElementById("declined-ids").textContent);
+  var form = document.getElementById("recipient-form");
+  var counter = document.getElementById("recipient-count");
+
+  function recount() {
+    var ids = new Set();
+    form.querySelectorAll('input[name="group_ids"]:checked').forEach(function (cb) {
+      (groupMembers[cb.value] || []).forEach(function (id) { ids.add(id); });
+    });
+    form.querySelectorAll('input[name="staff_ids"]:checked').forEach(function (cb) {
+      ids.add(parseInt(cb.value, 10));
+    });
+    var nr = form.querySelector('input[name="include_no_response"]');
+    if (nr && nr.checked) noResponse.forEach(function (id) { ids.add(id); });
+    var dec = form.querySelector('input[name="include_declined"]');
+    if (dec && dec.checked) declined.forEach(function (id) { ids.add(id); });
+    counter.textContent = ids.size + (ids.size === 1 ? " recipient" : " recipients") + " selected";
+  }
+  form.addEventListener("change", recount);
+  recount();
+
+  var filter = document.getElementById("staff-filter");
+  filter.addEventListener("input", function () {
+    var q = filter.value.trim().toLowerCase();
+    form.querySelectorAll(".staff-row").forEach(function (row) {
+      row.hidden = !!q && row.dataset.name.indexOf(q) === -1 && row.dataset.badge.indexOf(q) === -1;
+    });
+  });
+})();
+</script>
+{% endblock %}

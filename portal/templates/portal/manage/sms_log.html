@@ -1,0 +1,48 @@
+{% extends "portal/manage/base.html" %}
+{% block title %}SMS Log{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>SMS Log</h1>
+  {% if shift_id %}
+    <a class="btn ghost" href="{% url 'sms_log' %}">Show all messages</a>
+  {% endif %}
+</div>
+<p class="muted">Outbound messages submitted to Twilio. Phone numbers are masked here.</p>
+
+<div class="card table-card">
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr><th>When</th><th>Type</th><th>Shift</th><th>Recipient</th><th>To</th><th>Result</th><th>Twilio SID</th><th>Error</th></tr>
+      </thead>
+      <tbody>
+        {% for log in page %}
+        <tr>
+          <td class="nowrap">{{ log.created_at|date:"M j, g:i A" }}</td>
+          <td>{% if log.message_type == "SHIFT_INVITATION" %}Invitation{% else %}Acceptance alert{% endif %}</td>
+          <td class="small">{% if log.shift %}<a href="{% url 'shift_responses' log.shift.pk %}">{{ log.shift }}</a>{% else %}—{% endif %}</td>
+          <td>{% if log.staff %}{{ log.staff.name }}{% elif log.admin_user %}{{ log.admin_user.get_username }} (admin){% else %}—{% endif %}</td>
+          <td class="nowrap">{{ log.masked_phone }}</td>
+          <td>
+            {% if log.result == "SENT_TO_TWILIO" %}<span class="pill pill-full">Sent to Twilio</span>
+            {% else %}<span class="pill pill-declined">Failed</span>{% endif %}
+          </td>
+          <td class="small muted">{{ log.twilio_sid|default:"—"|truncatechars:20 }}</td>
+          <td class="small">{{ log.error_message|truncatechars:80|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="muted">No messages logged yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if page.has_other_pages %}
+  <div class="pager">
+    {% if page.has_previous %}<a class="btn small-btn" href="?page={{ page.previous_page_number }}{% if shift_id %}&amp;shift={{ shift_id }}{% endif %}">&larr; Newer</a>{% endif %}
+    <span class="muted">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+    {% if page.has_next %}<a class="btn small-btn" href="?page={{ page.next_page_number }}{% if shift_id %}&amp;shift={{ shift_id }}{% endif %}">Older &rarr;</a>{% endif %}
+  </div>
+{% endif %}
+{% endblock %}
